@@ -33,8 +33,8 @@ def parse_coordinates() -> Tuple[float, float, float, float]:
     
     if args.example:
         print("Пример использования:")
-        print("python script.py --bounds 29.97070 59.32198 33.94775 61.32827")
-        print("python script.py --bounds 37.0 55.0 38.0 56.0")
+        print("python osm_data_extract.py --bounds 29.97070 59.32198 33.94775 61.32827")
+        print("python osm_data_extract.py --bounds 37.0 55.0 38.0 56.0")
         sys.exit(0)
     
     min_lon, min_lat, max_lon, max_lat = args.bounds
@@ -228,10 +228,6 @@ def select_smallest_pbf_feature(
                 file_size = future.result(timeout=timeout)
                 features_with_size.append((feature, file_size))
                 
-                props = feature.get('properties', {})
-                size_str = f"{file_size / (1024*1024):.1f} MB" if file_size else "не определен"
-                print(f"  {props.get('name')}: {size_str}")
-                
             except Exception as e:
                 print(f"Ошибка для {feature.get('properties', {}).get('name')}: {e}")
                 features_with_size.append((feature, None))
@@ -244,15 +240,11 @@ def select_smallest_pbf_feature(
     
     smallest_feature, smallest_size = min(valid_features, key=lambda x: x[1])
     
-    props = smallest_feature.get('properties', {})
-    print(f"\nНаименьший файл: {props.get('name')} ({smallest_size / (1024*1024):.1f} MB)")
-    
     return smallest_feature
 
 if __name__ == "__main__":
     try:
         rect_bounds = parse_coordinates()
-        print(f"Используются координаты: {rect_bounds}")
         
         url = "https://download.geofabrik.de/index-v1.json"
 
@@ -269,6 +261,9 @@ if __name__ == "__main__":
         else:
             smalest = select_smallest_pbf_feature(matching)
             os.system(f"wget --limit-rate=10M -P data/osm-data/ {smalest['properties']['urls']['pbf']}")
+            min_lon, min_lat, max_lon, max_lat = rect_bounds
+            os.system(f"osmium extract --bbox '{min_lon},{min_lat},{max_lon},{max_lat}' data/osm-data/{smalest['properties']['id']}-latest.osm.pbf --output data/osm-data/map.osm.pbf")
+            os.system(f"rm -rf data/osm-data/{smalest['properties']['id']}-latest.osm.pbf")
         
     except ValueError as e:
         print(f"Ошибка в координатах: {e}")
