@@ -129,7 +129,7 @@ def main(args):
                 
                 def download_from_arcgis(x, y, z, path):
                     url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-                    url = url.format(x=z, y=y, z=z)
+                    url = url.format(x=x, y=y, z=z)
                     res = fetch_image(session, url)
                     if not res:
                         return tile, False
