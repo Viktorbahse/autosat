@@ -1,98 +1,18 @@
 import argparse
 import concurrent.futures as futures
-import csv
-import io
-import math
 import os
 import sys
 import time
 
 import mercantile
-import numpy as np
 import requests
 from PIL import Image
 from tqdm import tqdm
 
+from tile_utils import (fetch_image, latlon_to_yandex_tile, pixel_to_location,
+                        tiles_from_csv, xyz_to_quadkey)
+
 sources = ["yandex", "google", "bing", "arcgis", "all"]
-
-def tiles_from_csv(path):
-    """Read tiles from a line-delimited csv file.
-
-    Args:
-      file: the path to read the csv file from.
-
-    Yields:
-      The mercantile tiles from the csv file.
-    """
-
-    with open(path) as fp:
-        reader = csv.reader(fp)
-
-        for row in reader:
-            if not row:
-                continue
-
-            yield mercantile.Tile(*map(int, row))
-
-def fetch_image(session, url, timeout=10):
-    """Fetches the image representation for a tile.
-
-    Args:
-      session: the HTTP session to fetch the image from.
-      url: the tile imagery's url to fetch the image from.
-      timeout: the HTTP timeout in seconds.
-
-    Returns:
-     The satellite imagery as bytes or None in case of error.
-    """
-
-    try:
-        resp = session.get(url, timeout=timeout)
-        resp.raise_for_status()
-        return io.BytesIO(resp.content)
-    except Exception:
-        return None
-
-def xyz_to_quadkey(x, y, z):
-    x, y, z = int(x), int(y), int(z)
-    quadkey = ''
-    for i in range(z, 0, -1):
-        digit = 0
-        mask = 1 << (i - 1)
-        if (x & mask) != 0:
-            digit += 1
-        if (y & mask) != 0:
-            digit += 2
-        quadkey += str(digit)
-    return quadkey
-
-def latlon_to_yandex_tile(lat, lon, z):
-    e = 0.0818191908426
-    r = 2**(int(z) + 8) / 2
-    b = lat * math.pi / 180
-    p = (1 - e * math.sin(b)) / (1 + e * math.sin(b))
-    t = math.tan(math.pi/4 + b/2) * p**(e/2)
-    x = r * (1 + lon / 180)
-    y = r * (1 - math.log(t) / math.pi)
-    return [int(x/256), int(y/256)]
-
-def tile_to_coords(x, y, z):
-    """
-    Преобразует номера тайлов (x, y, z) в широту и долготу.
-    x, y могут быть скалярами или numpy-массивами; z может быть скаляром или массивом.
-    Возвращает (lat, lon) как numpy-массивы той же формы (broadcasted).
-    """
-    x = np.asarray(x, dtype=float)
-    y = np.asarray(y, dtype=float)
-    z = np.asarray(z, dtype=float)
-
-    n = 2.0 ** z
-    lon = (x + 0.5) / n * 360.0 - 180.0
-
-    t = np.pi * (1.0 - 2.0 * (y + 0.5) / n)
-    lat = np.degrees(np.arctan(np.sinh(t)))
-
-    return lat, lon
 
 def main(args):
     tiles = list(tiles_from_csv(args.input))
@@ -205,10 +125,12 @@ def main(args):
 
                     os.makedirs(os.path.join(args.out, 'yandex', z, x), exist_ok=True)
                     path = os.path.join(args.out, 'yandex', z, x, "{}.{}".format(y, args.ext))
-                    lat, lot = tile_to_coords(x, y, z)
-                    x, y = latlon_to_yandex_tile(lat, lot, z)
+
+                    tile = mercantile.Tile(x=int(x), y=int(y), z=int(z))
+                    lon, lat = pixel_to_location(tile, dx=0.5, dy=0.5)
+                    x, y = latlon_to_yandex_tile(lat, lon, int(z))
                     if not os.path.isfile(path):
-                        tile, flag_g = download_from_yandex(x,y,z,path)
+                        tile, flag_g = download_from_yandex(x,y,int(z),path)
                     return tile, flag_a*flag_b*flag_g*flag_y
                 else:    
                     os.makedirs(os.path.join(args.out, z, x), exist_ok=True)
@@ -241,7 +163,7 @@ def main(args):
                     elif args.source == 'bing':
                         return download_from_bing(x,y,z,path)
                     else:
-                        lat, lot = tile_to_coords(x, y, z)
+                        lat, lot = pixel_to_location(mercantile.Tile(x=int(x), y=int(y), z=int(z)), 0.5, 0.5)
                         x, y = latlon_to_yandex_tile(lat, lot, z)
                         return download_from_yandex(x,y,z,path)
             for tile, ok in executor.map(worker, tiles):
