@@ -36,7 +36,7 @@ def main(args):
             for path in dir_path.rglob("*.geojson"):
                 if path.is_file():
                     tiles.update(get_tiles(path, args.zoom))
-            out_path = Path(args.out) if args.out is not None else Path(f"data/{t}_tiles.csv")
+            out_path = Path(args.out) if args.out is not None else Path(f"data/{t}_tiles_{args.zoom}.csv")
             write_tiles(out_path, tiles)
 
     elif args.type is not None:
@@ -45,7 +45,7 @@ def main(args):
         for path in dir_path.rglob("*.geojson"):
             if path.is_file():
                 tiles.update(get_tiles(path, args.zoom))
-        out_path = Path(args.out) if args.out is not None else Path(f"data/{args.type}_tiles.csv")
+        out_path = Path(args.out) if args.out is not None else Path(f"data/{args.type}_tiles_{args.zoom}.csv")
         write_tiles(out_path, tiles)
 
     else:
@@ -72,6 +72,6 @@ if __name__ == "__main__":
         if not in_path.is_file():
             parser.error(f"Input file not found: {args.input}")
         if not args.out:
-            args.out = str(in_path.with_name(in_path.stem + "_tiles.csv"))
+            args.out = str(in_path.with_name(in_path.stem + f"_tiles_{args.zoom}.csv"))
 
     main(args)
