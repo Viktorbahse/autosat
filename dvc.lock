@@ -1,0 +1,53 @@
+schema: '2.0'
+stages:
+  download_and_extract_osm:
+    cmd: wget -c --limit-rate=10M -P data/ 
+      "https://download.geofabrik.de/russia/northwestern-fed-district-latest.osm.pbf"
+      && osmium extract --bbox 
+      "33.8043494634441,58.36280026154196,34.03893580408498,58.46726363078422" 
+      data/northwestern-fed-district-latest.osm.pbf --output data/map.osm.pbf
+    params:
+      params.yaml:
+        prepare_satellite_data.map_box:
+        - 33.8043494634441
+        - 58.36280026154196
+        - 34.03893580408498
+        - 58.46726363078422
+        prepare_satellite_data.osm: data/map.osm.pbf
+    outs:
+    - path: data/map.osm.pbf
+      hash: md5
+      md5: dc630b66438bc0b6bb7564bf23f98b2f
+      size: 819284
+    - path: data/northwestern-fed-district-latest.osm.pbf
+      hash: md5
+      md5: cc5a1f9c98182a27b30a498133b35ccb
+      size: 630581979
+  prepare_satellite_data:
+    cmd: python scripts/prepare_satellite_data.py
+    params:
+      params.yaml:
+        prepare_satellite_data:
+          classes:
+          - - road
+            - 255
+          data_dir: data/satellite
+          max_workers: 5
+          zoom: 17
+          num_tiles: 10
+          tile_size: 256
+          map_box:
+          - 33.8043494634441
+          - 58.36280026154196
+          - 34.03893580408498
+          - 58.46726363078422
+          osm: data/map.osm.pbf
+          sources:
+            google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
+            bing: http://a0.ortho.tiles.virtualearth.net/tiles/a{}.jpeg?g=2
+    outs:
+    - path: data/satellite
+      hash: md5
+      md5: 45d3454b3fef92f148264d849f649438.dir
+      size: 149315845
+      nfiles: 168
