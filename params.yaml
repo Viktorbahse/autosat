@@ -7,12 +7,12 @@ prepare_satellite_data:
   num_tiles: 10 # число тайлов по ширине и высоте изображения
   tile_size: 256 # размер тайла в пикселях
   map_box: ## TODO: скачать данные с карты с куском города, чем больше изображений скачаем тем лучше
-  - 33.8043494634441  # min_lon
-  - 58.36280026154196 # min_lat
-  - 34.03893580408498 # max_lon
-  - 58.46726363078422 # max_lat
+  - 30.21137  # min_lon
+  - 59.93016  # min_lat
+  - 30.33497  # max_lon
+  - 59.98456  # max_lat
   osm: data/map.osm.pbf
   sources: ## TODO: добавить TMS сервисы
     google: "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
     bing: "http://a0.ortho.tiles.virtualearth.net/tiles/a{}.jpeg?g=2"
-    
+    arcgis: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"

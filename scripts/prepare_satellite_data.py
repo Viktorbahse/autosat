@@ -251,6 +251,8 @@ def main(cfg: DictConfig):
                     elif service == "bing":
                         quadkey = xyz_to_quadkey(x, y, cfg.zoom)
                         url = source.format(quadkey)
+                    elif service == "arcgis":
+                       url = source.format(x=x, y=y, z=cfg.zoom)
                     else:
                         raise NotImplementedError
 

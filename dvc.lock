@@ -1,28 +1,27 @@
 schema: '2.0'
 stages:
   download_and_extract_osm:
-    cmd: wget -c --limit-rate=10M -P data/ 
+    cmd: wget -c --limit-rate=10M -P data/
       "https://download.geofabrik.de/russia/northwestern-fed-district-latest.osm.pbf"
-      && osmium extract --bbox 
-      "33.8043494634441,58.36280026154196,34.03893580408498,58.46726363078422" 
+      && osmium extract --bbox "30.21137,59.93016,30.33497,59.98456"
       data/northwestern-fed-district-latest.osm.pbf --output data/map.osm.pbf
     params:
       params.yaml:
         prepare_satellite_data.map_box:
-        - 33.8043494634441
-        - 58.36280026154196
-        - 34.03893580408498
-        - 58.46726363078422
+        - 30.21137
+        - 59.93016
+        - 30.33497
+        - 59.98456
         prepare_satellite_data.osm: data/map.osm.pbf
     outs:
     - path: data/map.osm.pbf
       hash: md5
-      md5: dc630b66438bc0b6bb7564bf23f98b2f
-      size: 819284
+      md5: 00352bc23f907dbdc84bca4bdfd6dab3
+      size: 5172225
     - path: data/northwestern-fed-district-latest.osm.pbf
       hash: md5
-      md5: cc5a1f9c98182a27b30a498133b35ccb
-      size: 630581979
+      md5: 9f9bc1e4754daa1ee1c453f9491308d5
+      size: 631026716
   prepare_satellite_data:
     cmd: python scripts/prepare_satellite_data.py
     params:
@@ -37,17 +36,19 @@ stages:
           num_tiles: 10
           tile_size: 256
           map_box:
-          - 33.8043494634441
-          - 58.36280026154196
-          - 34.03893580408498
-          - 58.46726363078422
+          - 30.21137
+          - 59.93016
+          - 30.33497
+          - 59.98456
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
             bing: http://a0.ortho.tiles.virtualearth.net/tiles/a{}.jpeg?g=2
+            arcgis:
+              https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}
     outs:
     - path: data/satellite
       hash: md5
-      md5: 45d3454b3fef92f148264d849f649438.dir
-      size: 149315845
-      nfiles: 168
+      md5: 8c901a0044b76b97a8a9d2c37f9aca28.dir
+      size: 66414209
+      nfiles: 64
