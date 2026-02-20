@@ -43,6 +43,107 @@ def resolution_to_zoom_level(resolution):
 
     return int(zoom_level)
 
+def tile_pixel_to_lonlat(x: int, y: int, z: int, px: int, py: int, tile_size: int = 256):
+    """
+    Convert tile x,y at zoom z and pixel coordinates px,py (0..tile_size-1)
+    to geographic coordinates (lon, lat) in degrees.
+
+    Returns (lon, lat).
+    """
+    n = 2 ** z
+    gx = (x * tile_size) + px
+    gy = (y * tile_size) + py
+    world = tile_size * n
+    lon = (gx / world) * 360.0 - 180.0
+    fy = gy / world
+    lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * fy)))
+    lat = math.degrees(lat_rad)
+
+    return lon, lat
+
+def yandex_tile_pixel_to_lon_lat(x: int, y: int, z: int, px: int, py: int) -> tuple:
+    """
+    Преобразует координаты тайла Яндекс.Карт и пикселя внутри него в географические координаты (долгота, широта).
+
+    Parameters:
+    -----------
+    x, y : int
+        Номера тайла по горизонтали и вертикали
+    z : int
+        Уровень масштабирования (0-17 для Яндекс.Карт)
+    px, py : int
+        Координаты пикселя внутри тайла (0-255)
+
+    Returns:
+    --------
+    tuple : (longitude, latitude) в градусах
+    """
+    # Константы
+    pi = math.pi
+    tile_size = 256
+
+    # Яндекс.Карты используют проекцию WGS84 Mercator с эксцентриситетом 0.0818191908426
+    e = 0.0818191908426
+
+    # 1. Вычисляем глобальные пиксельные координаты
+    x_p = x * tile_size + px
+    y_p = y * tile_size + py
+
+    # 2. Вычисляем rho (половина размера карты в пикселях)
+    rho = math.pow(2, z + 8) / 2
+
+    # 3. Вычисляем долготу (обратная операция к x = rho * (1 + long/180))
+    longitude = (x_p / rho - 1) * 180
+
+    # 4. Вычисляем theta из y координаты
+    # y_p = rho * (1 - ln(theta)/pi)
+    # ln(theta)/pi = 1 - y_p/rho
+    # ln(theta) = pi * (1 - y_p/rho)
+    theta = math.exp(pi * (1 - y_p / rho))
+
+    # 5. Решаем уравнение для широты
+    # theta = tan(pi/4 + beta/2) * ((1 - e*sin(beta))/(1 + e*sin(beta)))^(e/2)
+    # где beta - изометрическая широта в радианах
+
+    # Начальное приближение (сферическая Земля)
+    beta = 2 * math.atan(theta) - pi / 2
+
+    # Итеративное уточнение для эллипсоида (метод Ньютона)
+    # Обычно достаточно 10 итераций
+    for _ in range(10):
+        # Вычисляем текущее значение theta
+        sin_beta = math.sin(beta)
+        phi = (1 - e * sin_beta) / (1 + e * sin_beta)
+        theta_calc = math.tan(pi / 4 + beta / 2) * math.pow(phi, e / 2)
+
+        # Вычисляем производную
+        f_prime = theta_calc * (
+            1 / (2 * math.cos(pi / 4 + beta / 2)**2) / math.tan(pi / 4 + beta / 2) +
+            e * math.cos(beta) / (1 - (e * sin_beta)**2)
+        )
+
+        # Обновляем beta методом Ньютона
+        delta = (theta_calc - theta) / f_prime
+        beta -= delta
+
+        # Проверка на сходимость
+        if abs(delta) < 1e-12:
+            break
+
+    # Преобразуем радианы в градусы
+    latitude = beta * 180 / pi
+
+    return longitude, latitude
+
+def lat_lon_to_yandex_tile(lat, lon, z):
+    e = 0.0818191908426
+    r = 2**(int(z) + 8) / 2
+    b = lat * math.pi / 180
+    p = (1 - e * math.sin(b)) / (1 + e * math.sin(b))
+    t = math.tan(math.pi/4 + b/2) * p**(e/2)
+    x = r * (1 + lon / 180)
+    y = r * (1 - math.log(t) / math.pi)
+    return [int(x/256), int(y/256)]
 
 def deg2num(lon, lat, zoom):
     lat_r = math.radians(lat)
@@ -150,6 +251,72 @@ def burn(tile, features, size):
 
     return rasterize(shapes, out_shape=(size, size), transform=transform)
 
+def paste_tile_yandex(bigim, tile, corner_xy, bbox, z):
+    if tile is None:
+        return bigim
+
+    im = Image.open(io.BytesIO(tile))
+    mode = "RGB" if im.mode == "RGB" else "RGBA"
+    size = im.size
+
+
+    if bigim is None:
+        newim = Image.new(mode, (size[0] * (bbox[2] - bbox[0]), size[1] * (bbox[3] - bbox[1])))
+    else:
+        newim = bigim
+
+
+    big_lon_min, big_lat_max = tile_pixel_to_lonlat(bbox[0], bbox[1], z, 0, 0, size[0])
+    big_lon_max, big_lat_min = tile_pixel_to_lonlat(bbox[2]-1, bbox[3]-1, z, size[0], size[0], size[0])
+
+
+    tile_lon_min, tile_lat_max = yandex_tile_pixel_to_lon_lat(corner_xy[0], corner_xy[1], z, 0, 0)
+    tile_lon_max, tile_lat_min = yandex_tile_pixel_to_lon_lat(corner_xy[0], corner_xy[1], z, size[0], size[0])
+
+    lon_per_pixel = (big_lon_max - big_lon_min) / newim.size[0]
+    lat_per_pixel = (big_lat_min - big_lat_max) / newim.size[1]
+
+    paste_x = int((tile_lon_min - big_lon_min) / lon_per_pixel)
+    paste_y = int((tile_lat_max - big_lat_max) / lat_per_pixel)
+
+    if (paste_x + size[0] < 0 or paste_x >= newim.size[0] or
+        paste_y + size[1] < 0 or paste_y >= newim.size[1]):
+        im.close()
+        return newim
+
+    if paste_x < 0 or paste_y < 0 or paste_x + size[0] > newim.size[0] or paste_y + size[1] > newim.size[1]:
+        crop_x = max(0, -paste_x)
+        crop_y = max(0, -paste_y)
+        crop_w = min(size[0], newim.size[0] - paste_x) - crop_x
+        crop_h = min(size[1], newim.size[1] - paste_y) - crop_y
+
+        if crop_w <= 0 or crop_h <= 0:
+            im.close()
+            return newim
+
+        im_cropped = im.crop((crop_x, crop_y, crop_x + crop_w, crop_y + crop_h))
+
+        paste_x = max(0, paste_x)
+        paste_y = max(0, paste_y)
+
+        if mode == "RGB":
+            newim.paste(im_cropped, (paste_x, paste_y))
+        else:
+            if im_cropped.mode != mode:
+                im_cropped = im_cropped.convert(mode)
+            if not is_empty(im_cropped):
+                newim.paste(im_cropped, (paste_x, paste_y))
+    else:
+        if mode == "RGB":
+            newim.paste(im, (paste_x, paste_y))
+        else:
+            if im.mode != mode:
+                im = im.convert(mode)
+            if not is_empty(im):
+                newim.paste(im, (paste_x, paste_y))
+
+    im.close()
+    return newim
 
 def paste_tile(bigim, tile, corner_xy, bbox):
     if tile is None:
@@ -241,7 +408,16 @@ def main(cfg: DictConfig):
             x1, x2 = X, X + cfg.num_tiles
             y1, y2 = Y, Y + cfg.num_tiles
 
-            corners = tuple(product(range(x1, x2), range(y1, y2)))
+            if service == "yandex":
+                lon_min, lat_min = tile_pixel_to_lonlat(x1,y2-1,cfg.zoom, 0, cfg.tile_size-1)
+                lon_max, lat_max = tile_pixel_to_lonlat(x2-1,y1,cfg.zoom, cfg.tile_size-1, 0)
+                x_min, y_max = lat_lon_to_yandex_tile(lat_min, lon_min, cfg.zoom)
+                x_max, y_min = lat_lon_to_yandex_tile(lat_max, lon_max, cfg.zoom)
+                corners = tuple(product(range(x_min, x_max+1), range(y_max, y_min-1, -1)))
+            else:
+                corners = tuple(product(range(x1, x2), range(y1, y2)))
+
+
             futures = []
 
             with ThreadPoolExecutor(cfg.max_workers) as executor:
@@ -253,16 +429,20 @@ def main(cfg: DictConfig):
                         url = source.format(quadkey)
                     elif service == "arcgis":
                        url = source.format(x=x, y=y, z=cfg.zoom)
+                    elif service == "yandex":
+                        url = source.format(x=x, y=y, z=cfg.zoom)
                     else:
                         raise NotImplementedError
 
                     futures.append(executor.submit(get_tile, url))
 
             image: Image.Image | None = None
-
             for feat, xy in zip(futures, corners):
                 if feat.result() is not None:
-                    image = paste_tile(image, feat.result(), xy, (x1, y1, x2, y2))
+                    if service=="yandex":
+                        image = paste_tile_yandex(image, feat.result(), xy, (x1, y1, x2, y2), z=cfg.zoom)
+                    else:
+                        image = paste_tile(image, feat.result(), xy, (x1, y1, x2, y2))
 
             # сохранение изображения
             out_dir = make_dir(data_dir / f"{str(X).zfill(5)}" / f"{str(Y).zfill(5)}", delete_if_exist=False)
@@ -300,7 +480,7 @@ def main(cfg: DictConfig):
                         continue
 
                 mask = None
-
+                corners = tuple(product(range(x1, x2), range(y1, y2)))
                 with ThreadPoolExecutor(cfg.max_workers) as executor:
                     for xy in corners:
                         mask = paste_mask(mask, cfg.tile_size, feature_map, xy, (x1, y1, x2, y2), cfg.zoom)

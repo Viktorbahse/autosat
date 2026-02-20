@@ -46,9 +46,10 @@ stages:
             bing: http://a0.ortho.tiles.virtualearth.net/tiles/a{}.jpeg?g=2
             arcgis:
               https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}
+            yandex: https://sat04.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}
     outs:
     - path: data/satellite
       hash: md5
-      md5: 8c901a0044b76b97a8a9d2c37f9aca28.dir
-      size: 66414209
-      nfiles: 64
+      md5: 76ab5533c615be5a956cf2bf0421936e.dir
+      size: 90971561
+      nfiles: 80

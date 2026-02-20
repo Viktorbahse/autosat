@@ -16,3 +16,4 @@ prepare_satellite_data:
     google: "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
     bing: "http://a0.ortho.tiles.virtualearth.net/tiles/a{}.jpeg?g=2"
     arcgis: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    yandex: "https://sat04.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}"
