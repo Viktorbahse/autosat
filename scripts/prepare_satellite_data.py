@@ -26,7 +26,7 @@ SESSION = httpx.Client()
 
 root = rootutils.setup_root(__file__, indicator="pyproject.toml", pythonpath=True)
 
-from scripts.handlers import RoadHandler
+from scripts.handlers import BuildingHandler, RoadHandler
 
 from src.utils import make_dir
 
@@ -422,15 +422,11 @@ def main(cfg: DictConfig):
 
             with ThreadPoolExecutor(cfg.max_workers) as executor:
                 for x, y in corners:
-                    if service == "google":
+                    if service in ["google", "arcgis", "yandex"]:
                         url = source.format(x=x, y=y, z=cfg.zoom)
                     elif service == "bing":
                         quadkey = xyz_to_quadkey(x, y, cfg.zoom)
                         url = source.format(quadkey)
-                    elif service == "arcgis":
-                       url = source.format(x=x, y=y, z=cfg.zoom)
-                    elif service == "yandex":
-                        url = source.format(x=x, y=y, z=cfg.zoom)
                     else:
                         raise NotImplementedError
 
@@ -461,10 +457,20 @@ def main(cfg: DictConfig):
                     handler.flush()
                     files = list(Path(tmpdir).glob("*.geojson"))
                     if len(files) != 1:
-                        ## TODO: добавить обработку нескольких geojson файлов
-                        raise NotImplementedError
-                    with open(files[0], "r", encoding="utf-8") as f:
-                        features = json.load(f)
+                        all_features = []
+
+                        for file in files:
+                            with open(file, "r", encoding="utf-8") as f:
+                                data = json.load(f)
+                                all_features.extend(data["features"])
+
+                        features = {
+                            "type": "FeatureCollection",
+                            "features": all_features
+                        }
+                    else:
+                        with open(files[0], "r", encoding="utf-8") as f:
+                            features = json.load(f)
 
                 feature_map = collections.defaultdict(list)
 
