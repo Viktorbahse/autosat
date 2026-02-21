@@ -30,6 +30,14 @@ stages:
           classes:
           - - road
             - 255
+          - - building
+            - 255
+          - - parking
+            - 255
+          - - water
+            - 255
+          - - field
+            - 255
           data_dir: data/satellite
           max_workers: 5
           zoom: 17
@@ -42,14 +50,10 @@ stages:
           - 59.98456
           osm: data/map.osm.pbf
           sources:
-            google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
-            bing: http://a0.ortho.tiles.virtualearth.net/tiles/a{}.jpeg?g=2
-            arcgis:
-              https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}
             yandex: https://sat04.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}
     outs:
     - path: data/satellite
       hash: md5
-      md5: ea5c2d06fa8027f9628b62fec7528b9c.dir
-      size: 90330137
-      nfiles: 80
+      md5: e215c60fe211d4df965feb52c49686e9.dir
+      size: 28295177
+      nfiles: 96

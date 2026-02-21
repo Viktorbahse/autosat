@@ -7,6 +7,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 from pathlib import Path
+from typing import Dict, Type, Union
 
 import httpx
 import mercantile
@@ -26,10 +27,19 @@ SESSION = httpx.Client()
 
 root = rootutils.setup_root(__file__, indicator="pyproject.toml", pythonpath=True)
 
-from scripts.handlers import BuildingHandler, RoadHandler
+from scripts.handlers import BuildingHandler, FieldHandler, ParkingHandler, RoadHandler, WaterBodyHandler
 
 from src.utils import make_dir
 
+HandlerType = Union[ParkingHandler, BuildingHandler, RoadHandler, WaterBodyHandler, FieldHandler]
+
+handlers: Dict[str, Type[HandlerType]] = {
+    "parking": ParkingHandler,
+    "building": BuildingHandler,
+    "road": RoadHandler,
+    "water": WaterBodyHandler,
+    "field": FieldHandler,
+}
 
 def resolution_to_zoom_level(resolution):
     """
@@ -393,6 +403,9 @@ def xyz_to_quadkey(x, y, z):
 
 
 def main(cfg: DictConfig):
+
+
+
     X1, Y1, X2, Y2 = get_xy_corners(cfg.map_box, cfg.zoom)
 
     data_dir = make_dir(Path(cfg.data_dir) / f"{cfg.zoom}", delete_if_exist=True)
@@ -447,57 +460,58 @@ def main(cfg: DictConfig):
             if image is not None:
                 image.save(file)
                 print(file)
+            for classe in cfg.classes:
+                handler_cls = handlers[classe[0]]
+                # генерация маски
+                if (X, Y, classe[0]) not in mask_cache:
+                    with tempfile.TemporaryDirectory(dir=root / "data") as tmpdir:
+                        file = Path(tmpdir) / "features.geojson"
+                        handler = handler_cls(file, batch=100_000)
+                        handler.apply_file(cfg.osm, locations=True)
+                        handler.flush()
+                        files = list(Path(tmpdir).glob("*.geojson"))
+                        if len(files) != 1:
+                            all_features = []
 
-            # генерация маски
-            if (X, Y) not in mask_cache:
-                with tempfile.TemporaryDirectory(dir=root / "data") as tmpdir:
-                    file = Path(tmpdir) / "features.geojson"
-                    handler = RoadHandler(file, batch=100_000)
-                    handler.apply_file(cfg.osm, locations=True)
-                    handler.flush()
-                    files = list(Path(tmpdir).glob("*.geojson"))
-                    if len(files) != 1:
-                        all_features = []
+                            for file in files:
+                                with open(file, "r", encoding="utf-8") as f:
+                                    data = json.load(f)
+                                    all_features.extend(data["features"])
 
-                        for file in files:
-                            with open(file, "r", encoding="utf-8") as f:
-                                data = json.load(f)
-                                all_features.extend(data["features"])
+                            features = {
+                                "type": "FeatureCollection",
+                                "features": all_features
+                            }
+                        else:
+                            with open(files[0], "r", encoding="utf-8") as f:
+                                features = json.load(f)
 
-                        features = {
-                            "type": "FeatureCollection",
-                            "features": all_features
-                        }
-                    else:
-                        with open(files[0], "r", encoding="utf-8") as f:
-                            features = json.load(f)
+                    feature_map = collections.defaultdict(list)
 
-                feature_map = collections.defaultdict(list)
+                    for i, feature in enumerate(features["features"]):
+                        if feature["geometry"]["type"] != "Polygon":
+                            continue
 
-                for i, feature in enumerate(features["features"]):
-                    if feature["geometry"]["type"] != "Polygon":
-                        continue
+                        try:
+                            for tile in burntiles.burn([feature], zoom=cfg.zoom):
+                                feature_map[mercantile.Tile(int(tile[0]), int(tile[1]), int(tile[2]))].append(feature)
+                        except ValueError as _:
+                            print("Warning: invalid feature {}, skipping".format(i), file=sys.stderr)
+                            continue
 
-                    try:
-                        for tile in burntiles.burn([feature], zoom=cfg.zoom):
-                            feature_map[mercantile.Tile(int(tile[0]), int(tile[1]), int(tile[2]))].append(feature)
-                    except ValueError as _:
-                        print("Warning: invalid feature {}, skipping".format(i), file=sys.stderr)
-                        continue
+                    mask = None
+                    corners = tuple(product(range(x1, x2), range(y1, y2)))
+                    with ThreadPoolExecutor(cfg.max_workers) as executor:
+                        for xy in corners:
+                            mask = paste_mask(mask, cfg.tile_size, feature_map, xy, (x1, y1, x2, y2), cfg.zoom)
 
-                mask = None
-                corners = tuple(product(range(x1, x2), range(y1, y2)))
-                with ThreadPoolExecutor(cfg.max_workers) as executor:
-                    for xy in corners:
-                        mask = paste_mask(mask, cfg.tile_size, feature_map, xy, (x1, y1, x2, y2), cfg.zoom)
+                    mask_cache.add((X, Y, classe[0]))
 
-                mask_cache.add((X, Y))
-
-                # сохранение маски
-                file = out_dir / "mask.png"
-                mask = Image.fromarray(mask, "L")
-                mask.save(file, optimize=True)
-                print(file)
+                    # сохранение маски
+                    file = out_dir / f"mask_{classe[0]}.png"
+                    mask = Image.fromarray(mask, "L")
+                    mask.save(file, optimize=True)
+                    print(file)
 
 
 if __name__ == "__main__":

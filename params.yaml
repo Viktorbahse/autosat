@@ -1,6 +1,10 @@
 prepare_satellite_data:
   classes: # TODO: добавить классы для сегментации
   - [road, 255] # [имя класса, интенсивность маски]
+  - [building, 255]
+  - [parking, 255]
+  - [water, 255]
+  - [field, 255]
   data_dir: data/satellite
   max_workers: 5
   zoom: 17 # zoom 17 соответствует примерно 1 px / m
