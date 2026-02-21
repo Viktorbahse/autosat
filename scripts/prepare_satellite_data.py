@@ -72,75 +72,37 @@ def tile_pixel_to_lonlat(x: int, y: int, z: int, px: int, py: int, tile_size: in
     return lon, lat
 
 def yandex_tile_pixel_to_lon_lat(x: int, y: int, z: int, px: int, py: int) -> tuple:
-    """
-    Преобразует координаты тайла Яндекс.Карт и пикселя внутри него в географические координаты (долгота, широта).
-
-    Parameters:
-    -----------
-    x, y : int
-        Номера тайла по горизонтали и вертикали
-    z : int
-        Уровень масштабирования (0-17 для Яндекс.Карт)
-    px, py : int
-        Координаты пикселя внутри тайла (0-255)
-
-    Returns:
-    --------
-    tuple : (longitude, latitude) в градусах
-    """
-    # Константы
     pi = math.pi
     tile_size = 256
 
-    # Яндекс.Карты используют проекцию WGS84 Mercator с эксцентриситетом 0.0818191908426
     e = 0.0818191908426
 
-    # 1. Вычисляем глобальные пиксельные координаты
     x_p = x * tile_size + px
     y_p = y * tile_size + py
 
-    # 2. Вычисляем rho (половина размера карты в пикселях)
     rho = math.pow(2, z + 8) / 2
 
-    # 3. Вычисляем долготу (обратная операция к x = rho * (1 + long/180))
     longitude = (x_p / rho - 1) * 180
 
-    # 4. Вычисляем theta из y координаты
-    # y_p = rho * (1 - ln(theta)/pi)
-    # ln(theta)/pi = 1 - y_p/rho
-    # ln(theta) = pi * (1 - y_p/rho)
     theta = math.exp(pi * (1 - y_p / rho))
-
-    # 5. Решаем уравнение для широты
-    # theta = tan(pi/4 + beta/2) * ((1 - e*sin(beta))/(1 + e*sin(beta)))^(e/2)
-    # где beta - изометрическая широта в радианах
-
-    # Начальное приближение (сферическая Земля)
     beta = 2 * math.atan(theta) - pi / 2
 
-    # Итеративное уточнение для эллипсоида (метод Ньютона)
-    # Обычно достаточно 10 итераций
     for _ in range(10):
-        # Вычисляем текущее значение theta
         sin_beta = math.sin(beta)
         phi = (1 - e * sin_beta) / (1 + e * sin_beta)
         theta_calc = math.tan(pi / 4 + beta / 2) * math.pow(phi, e / 2)
 
-        # Вычисляем производную
         f_prime = theta_calc * (
             1 / (2 * math.cos(pi / 4 + beta / 2)**2) / math.tan(pi / 4 + beta / 2) +
             e * math.cos(beta) / (1 - (e * sin_beta)**2)
         )
 
-        # Обновляем beta методом Ньютона
         delta = (theta_calc - theta) / f_prime
         beta -= delta
 
-        # Проверка на сходимость
         if abs(delta) < 1e-12:
             break
 
-    # Преобразуем радианы в градусы
     latitude = beta * 180 / pi
 
     return longitude, latitude
