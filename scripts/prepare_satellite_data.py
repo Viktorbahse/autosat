@@ -7,8 +7,9 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 from pathlib import Path
-from typing import Dict, Type, Union
+from typing import Dict, List, Type, Union
 
+import h5py
 import httpx
 import mercantile
 import numpy as np
@@ -350,8 +351,7 @@ def paste_mask(bigmsk, tile_size, feature_map, xy, bbox, zoom):
     return newmsk
 
 
-def xyz_to_quadkey(x, y, z):
-    x, y, z = int(x), int(y), int(z)
+def xyz_to_quadkey(x: int, y: int, z: int) -> str:
     quadkey = ""
     for i in range(z, 0, -1):
         digit = 0
@@ -363,10 +363,51 @@ def xyz_to_quadkey(x, y, z):
         quadkey += str(digit)
     return quadkey
 
+def merge_images(files, output_file, tile_size):
+    test_im = Image.open(files[0])
+    channels = len(test_im.getbands())
+
+    x_coords = [int(file.split('/')[-3]) for file in files]
+    y_coords = [int(file.split('/')[-2]) for file in files]
+    x_min, x_max = min(x_coords), max(x_coords)
+    y_min, y_max = min(y_coords), max(y_coords)
+
+    width = int((x_max + 10 - x_min) * tile_size)
+    height = int((y_max + 10 - y_min) * tile_size)
+    big_im = np.zeros((height, width, channels), dtype=np.uint8)
+    for file in files:
+        x, y = int(file.split('/')[-3]), int(file.split('/')[-2])
+        im = np.array(Image.open(file))
+        if im.ndim == 2:
+            im = im[:, :, None]
+        x0, x1 = (x-x_min)*tile_size, (x+10-x_min)*tile_size
+        y0, y1 = (y-y_min)*tile_size, (y+10-y_min)*tile_size
+        big_im[y0:y1,x0:x1] = im
+
+    with h5py.File(output_file, "w") as f:
+
+        shape = (height, width, channels)
+
+        dset = f.create_dataset(
+            name='image',
+            shape=shape,
+            dtype=big_im.dtype,
+            compression="lzf"
+        )
+
+        dset[:] = big_im
+
+        f.attrs["height"] = height
+        f.attrs["width"] = width
+        f.attrs["channels"] = channels
 
 def main(cfg: DictConfig):
-
-
+    root_dir = str(Path(__file__).resolve().parent.parent)
+    all_files: Dict[str, List[str]] = {}
+    for service, _ in cfg.sources.items():
+        all_files[service] = []
+    for classe in cfg.classes:
+        all_files[classe[0]] = []
 
     X1, Y1, X2, Y2 = get_xy_corners(cfg.map_box, cfg.zoom)
 
@@ -418,6 +459,8 @@ def main(cfg: DictConfig):
             # сохранение изображения
             out_dir = make_dir(data_dir / f"{str(X).zfill(5)}" / f"{str(Y).zfill(5)}", delete_if_exist=False)
             file = out_dir / f"{service}.jpg"
+
+            all_files[service].append(f'{root_dir}/{str(file)}')
 
             if image is not None:
                 image.save(file)
@@ -471,9 +514,14 @@ def main(cfg: DictConfig):
 
                     # сохранение маски
                     file = out_dir / f"mask_{classe[0]}.png"
+                    all_files[classe[0]].append(f'{root_dir}/{str(file)}')
                     mask = Image.fromarray(mask, "L")
                     mask.save(file, optimize=True)
                     print(file)
+
+    for key in all_files.keys():
+        merge_images(all_files[key], f'{root_dir}/{str(data_dir)}/{key}.hdf5', cfg.tile_size)
+        print(str(data_dir)+f'/{key}.hdf5 successfully saved!')
 
 
 if __name__ == "__main__":

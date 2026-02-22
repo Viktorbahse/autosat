@@ -16,12 +16,12 @@ stages:
     outs:
     - path: data/map.osm.pbf
       hash: md5
-      md5: 00352bc23f907dbdc84bca4bdfd6dab3
-      size: 5172225
+      md5: b72b0267ce613f127a83d0a83354bac1
+      size: 5172218
     - path: data/northwestern-fed-district-latest.osm.pbf
       hash: md5
-      md5: 9f9bc1e4754daa1ee1c453f9491308d5
-      size: 631026716
+      md5: 442faaa232aa865ef642fdc86c71de56
+      size: 631153116
   prepare_satellite_data:
     cmd: python scripts/prepare_satellite_data.py
     params:
@@ -50,10 +50,14 @@ stages:
           - 59.98456
           osm: data/map.osm.pbf
           sources:
+            google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
+            bing: http://a0.ortho.tiles.virtualearth.net/tiles/a{}.jpeg?g=2
+            arcgis:
+              https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}
             yandex: https://sat04.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}
     outs:
     - path: data/satellite
       hash: md5
-      md5: e215c60fe211d4df965feb52c49686e9.dir
-      size: 28295177
-      nfiles: 96
+      md5: c0ac4bafbe13515be2e9901904042146.dir
+      size: 1272171678
+      nfiles: 153
