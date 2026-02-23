@@ -16,12 +16,12 @@ stages:
     outs:
     - path: data/map.osm.pbf
       hash: md5
-      md5: b72b0267ce613f127a83d0a83354bac1
-      size: 5172218
+      md5: 269c4596424839c3fad08f3950bdc6d6
+      size: 5172215
     - path: data/northwestern-fed-district-latest.osm.pbf
       hash: md5
-      md5: 442faaa232aa865ef642fdc86c71de56
-      size: 631153116
+      md5: 733f1de0c259c02eb666efb46db50f50
+      size: 631217034
   prepare_satellite_data:
     cmd: python scripts/prepare_satellite_data.py
     params:

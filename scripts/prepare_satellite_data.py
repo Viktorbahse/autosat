@@ -363,52 +363,8 @@ def xyz_to_quadkey(x: int, y: int, z: int) -> str:
         quadkey += str(digit)
     return quadkey
 
-def merge_images(files, output_file, tile_size):
-    test_im = Image.open(files[0])
-    channels = len(test_im.getbands())
-
-    x_coords = [int(file.split('/')[-3]) for file in files]
-    y_coords = [int(file.split('/')[-2]) for file in files]
-    x_min, x_max = min(x_coords), max(x_coords)
-    y_min, y_max = min(y_coords), max(y_coords)
-
-    width = int((x_max + 10 - x_min) * tile_size)
-    height = int((y_max + 10 - y_min) * tile_size)
-    big_im = np.zeros((height, width, channels), dtype=np.uint8)
-    for file in files:
-        x, y = int(file.split('/')[-3]), int(file.split('/')[-2])
-        im = np.array(Image.open(file))
-        if im.ndim == 2:
-            im = im[:, :, None]
-        x0, x1 = (x-x_min)*tile_size, (x+10-x_min)*tile_size
-        y0, y1 = (y-y_min)*tile_size, (y+10-y_min)*tile_size
-        big_im[y0:y1,x0:x1] = im
-
-    with h5py.File(output_file, "w") as f:
-
-        shape = (height, width, channels)
-
-        dset = f.create_dataset(
-            name='image',
-            shape=shape,
-            dtype=big_im.dtype,
-            compression="lzf"
-        )
-
-        dset[:] = big_im
-
-        f.attrs["height"] = height
-        f.attrs["width"] = width
-        f.attrs["channels"] = channels
 
 def main(cfg: DictConfig):
-    root_dir = str(Path(__file__).resolve().parent.parent)
-    all_files: Dict[str, List[str]] = {}
-    for service, _ in cfg.sources.items():
-        all_files[service] = []
-    for classe in cfg.classes:
-        all_files[classe[0]] = []
-
     X1, Y1, X2, Y2 = get_xy_corners(cfg.map_box, cfg.zoom)
 
     data_dir = make_dir(Path(cfg.data_dir) / f"{cfg.zoom}", delete_if_exist=True)
@@ -460,15 +416,14 @@ def main(cfg: DictConfig):
             out_dir = make_dir(data_dir / f"{str(X).zfill(5)}" / f"{str(Y).zfill(5)}", delete_if_exist=False)
             file = out_dir / f"{service}.jpg"
 
-            all_files[service].append(f'{root_dir}/{str(file)}')
 
             if image is not None:
                 image.save(file)
                 print(file)
-            for classe in cfg.classes:
-                handler_cls = handlers[classe[0]]
+            for obj_class in cfg.classes:
+                handler_cls = handlers[obj_class[0]]
                 # генерация маски
-                if (X, Y, classe[0]) not in mask_cache:
+                if (X, Y, obj_class[0]) not in mask_cache:
                     with tempfile.TemporaryDirectory(dir=root / "data") as tmpdir:
                         file = Path(tmpdir) / "features.geojson"
                         handler = handler_cls(file, batch=100_000)
@@ -510,18 +465,14 @@ def main(cfg: DictConfig):
                         for xy in corners:
                             mask = paste_mask(mask, cfg.tile_size, feature_map, xy, (x1, y1, x2, y2), cfg.zoom)
 
-                    mask_cache.add((X, Y, classe[0]))
+                    mask_cache.add((X, Y, obj_class[0]))
 
                     # сохранение маски
-                    file = out_dir / f"mask_{classe[0]}.png"
-                    all_files[classe[0]].append(f'{root_dir}/{str(file)}')
+                    file = out_dir / f"mask_{obj_class[0]}.png"
                     mask = Image.fromarray(mask, "L")
                     mask.save(file, optimize=True)
                     print(file)
 
-    for key in all_files.keys():
-        merge_images(all_files[key], f'{root_dir}/{str(data_dir)}/{key}.hdf5', cfg.tile_size)
-        print(str(data_dir)+f'/{key}.hdf5 successfully saved!')
 
 
 if __name__ == "__main__":
