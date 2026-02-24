@@ -224,73 +224,6 @@ def burn(tile, features, size):
 
     return rasterize(shapes, out_shape=(size, size), transform=transform)
 
-def paste_tile_yandex(bigim, tile, corner_xy, bbox, z):
-    if tile is None:
-        return bigim
-
-    im = Image.open(io.BytesIO(tile))
-    mode = "RGB" if im.mode == "RGB" else "RGBA"
-    size = im.size
-
-
-    if bigim is None:
-        newim = Image.new(mode, (size[0] * (bbox[2] - bbox[0]), size[1] * (bbox[3] - bbox[1])))
-    else:
-        newim = bigim
-
-
-    big_lon_min, big_lat_max = tile_pixel_to_lonlat(bbox[0], bbox[1], z, 0, 0, size[0])
-    big_lon_max, big_lat_min = tile_pixel_to_lonlat(bbox[2]-1, bbox[3]-1, z, size[0], size[0], size[0])
-
-
-    tile_lon_min, tile_lat_max = yandex_tile_pixel_to_lon_lat(corner_xy[0], corner_xy[1], z, 0, 0)
-    tile_lon_max, tile_lat_min = yandex_tile_pixel_to_lon_lat(corner_xy[0], corner_xy[1], z, size[0], size[0])
-
-    lon_per_pixel = (big_lon_max - big_lon_min) / newim.size[0]
-    lat_per_pixel = (big_lat_min - big_lat_max) / newim.size[1]
-
-    paste_x = int((tile_lon_min - big_lon_min) / lon_per_pixel)
-    paste_y = int((tile_lat_max - big_lat_max) / lat_per_pixel)
-
-    if (paste_x + size[0] < 0 or paste_x >= newim.size[0] or
-        paste_y + size[1] < 0 or paste_y >= newim.size[1]):
-        im.close()
-        return newim
-
-    if paste_x < 0 or paste_y < 0 or paste_x + size[0] > newim.size[0] or paste_y + size[1] > newim.size[1]:
-        crop_x = max(0, -paste_x)
-        crop_y = max(0, -paste_y)
-        crop_w = min(size[0], newim.size[0] - paste_x) - crop_x
-        crop_h = min(size[1], newim.size[1] - paste_y) - crop_y
-
-        if crop_w <= 0 or crop_h <= 0:
-            im.close()
-            return newim
-
-        im_cropped = im.crop((crop_x, crop_y, crop_x + crop_w, crop_y + crop_h))
-
-        paste_x = max(0, paste_x)
-        paste_y = max(0, paste_y)
-
-        if mode == "RGB":
-            newim.paste(im_cropped, (paste_x, paste_y))
-        else:
-            if im_cropped.mode != mode:
-                im_cropped = im_cropped.convert(mode)
-            if not is_empty(im_cropped):
-                newim.paste(im_cropped, (paste_x, paste_y))
-    else:
-        if mode == "RGB":
-            newim.paste(im, (paste_x, paste_y))
-        else:
-            if im.mode != mode:
-                im = im.convert(mode)
-            if not is_empty(im):
-                newim.paste(im, (paste_x, paste_y))
-
-    im.close()
-    return newim
-
 def paste_tile(bigim, tile, corner_xy, bbox):
     if tile is None:
         return bigim
@@ -430,11 +363,13 @@ def main(cfg: DictConfig):
                     futures.append(executor.submit(get_tile, url))
 
             image: Image.Image | None = None
-            for feat, xy in zip(futures, corners):
-                if feat.result() is not None:
-                    if service=="yandex":
-                        image = paste_tile_yandex(image, feat.result(), xy, (x1, y1, x2, y2), z=cfg.zoom)
-                    else:
+            if service == "yandex":
+                for feat, xy in zip(futures, corners):
+                    if feat.result() is not None:
+                        image = paste_tile(image, feat.result(), xy, (x_min, y_min, x_max+1, y_max))
+            else:
+                for feat, xy in zip(futures, corners):
+                    if feat.result() is not None:
                         image = paste_tile(image, feat.result(), xy, (x1, y1, x2, y2))
 
             # сохранение изображения

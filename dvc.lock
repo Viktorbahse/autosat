@@ -58,6 +58,6 @@ stages:
     outs:
     - path: data/satellite
       hash: md5
-      md5: 21886cfc3ebd88611735731f1d2aad42.dir
-      size: 92098590
+      md5: 7fde691e5bc43df4f356adedfa653310.dir
+      size: 91897663
       nfiles: 80
