@@ -323,12 +323,12 @@ def paste_tile(bigim, tile, corner_xy, bbox):
     return newim
 
 
-def paste_mask(bigmsk, tile_size, feature_map, xy, bbox, zoom):
+def paste_mask(bigmsk, tile_size, feature_map, xy, bbox, zoom, intensity):
     tile = mercantile.Tile(int(xy[0]), int(xy[1]), int(zoom))
 
     if tile in feature_map:
         msk = burn(tile, feature_map[tile], tile_size)
-        msk = (255 * msk).astype(np.uint8)
+        msk = (intensity * msk).astype(np.uint8)
     else:
         msk = np.zeros((tile_size, tile_size), dtype=np.uint8)
 
@@ -370,6 +370,31 @@ def main(cfg: DictConfig):
     data_dir = make_dir(Path(cfg.data_dir) / f"{cfg.zoom}", delete_if_exist=True)
 
     mask_cache = set()
+
+    feature_map_dict: Dict[str, dict] = {}
+    for obj_class in cfg.classes:
+        handler_cls = handlers[obj_class[0]]
+        with tempfile.TemporaryDirectory(dir=root / "data") as tmpdir:
+            file = Path(tmpdir) / "features.geojson"
+            handler = handler_cls(file, batch=100_000)
+            handler.apply_file(cfg.osm, locations=True)
+            handler.flush()
+            files = list(Path(tmpdir).glob("*.geojson"))
+
+            feature_map_dict[obj_class] = collections.defaultdict(list)
+            for file in files:
+                with open(file, "r", encoding="utf-8") as f:
+                    features = json.load(f)
+                for i, feature in enumerate(features["features"]):
+                    if feature["geometry"]["type"] != "Polygon":
+                        continue
+
+                    try:
+                        for tile in burntiles.burn([feature], zoom=cfg.zoom):
+                            feature_map_dict[obj_class][mercantile.Tile(int(tile[0]), int(tile[1]), int(tile[2]))].append(feature)
+                    except ValueError as _:
+                        print("Warning: invalid feature {}, skipping".format(i), file=sys.stderr)
+                        continue
 
     for service, source in cfg.sources.items():
         print(f"TMS service: {service}")
@@ -420,58 +445,23 @@ def main(cfg: DictConfig):
             if image is not None:
                 image.save(file)
                 print(file)
-            for obj_class in cfg.classes:
-                handler_cls = handlers[obj_class[0]]
-                # генерация маски
-                if (X, Y, obj_class[0]) not in mask_cache:
-                    with tempfile.TemporaryDirectory(dir=root / "data") as tmpdir:
-                        file = Path(tmpdir) / "features.geojson"
-                        handler = handler_cls(file, batch=100_000)
-                        handler.apply_file(cfg.osm, locations=True)
-                        handler.flush()
-                        files = list(Path(tmpdir).glob("*.geojson"))
-                        if len(files) != 1:
-                            all_features = []
-
-                            for file in files:
-                                with open(file, "r", encoding="utf-8") as f:
-                                    data = json.load(f)
-                                    all_features.extend(data["features"])
-
-                            features = {
-                                "type": "FeatureCollection",
-                                "features": all_features
-                            }
-                        else:
-                            with open(files[0], "r", encoding="utf-8") as f:
-                                features = json.load(f)
-
-                    feature_map = collections.defaultdict(list)
-
-                    for i, feature in enumerate(features["features"]):
-                        if feature["geometry"]["type"] != "Polygon":
-                            continue
-
-                        try:
-                            for tile in burntiles.burn([feature], zoom=cfg.zoom):
-                                feature_map[mercantile.Tile(int(tile[0]), int(tile[1]), int(tile[2]))].append(feature)
-                        except ValueError as _:
-                            print("Warning: invalid feature {}, skipping".format(i), file=sys.stderr)
-                            continue
-
-                    mask = None
-                    corners = tuple(product(range(x1, x2), range(y1, y2)))
+            if (X, Y) not in mask_cache:
+                masks: List[np.array] = []
+                for obj_class in cfg.classes:
+                    masks.append(None)
                     with ThreadPoolExecutor(cfg.max_workers) as executor:
                         for xy in corners:
-                            mask = paste_mask(mask, cfg.tile_size, feature_map, xy, (x1, y1, x2, y2), cfg.zoom)
+                            masks[-1] = paste_mask(masks[-1], cfg.tile_size, feature_map_dict[obj_class], xy, (x1, y1, x2, y2), cfg.zoom, int(obj_class[1]))
 
-                    mask_cache.add((X, Y, obj_class[0]))
 
-                    # сохранение маски
-                    file = out_dir / f"mask_{obj_class[0]}.png"
-                    mask = Image.fromarray(mask, "L")
-                    mask.save(file, optimize=True)
-                    print(file)
+                stack = np.stack(masks, axis=0)
+                result = np.max(stack, axis=0)
+                file = out_dir / f"mask.png"
+                mask = Image.fromarray(result, "L")
+                mask.save(file, optimize=True)
+                print(file)
+                mask_cache.add((X, Y))
+
 
 
 

@@ -31,13 +31,13 @@ stages:
           - - road
             - 255
           - - building
-            - 255
+            - 204
           - - parking
-            - 255
+            - 153
           - - water
-            - 255
+            - 102
           - - field
-            - 255
+            - 51
           data_dir: data/satellite
           max_workers: 5
           zoom: 17
@@ -58,6 +58,6 @@ stages:
     outs:
     - path: data/satellite
       hash: md5
-      md5: c0ac4bafbe13515be2e9901904042146.dir
-      size: 1272171678
-      nfiles: 153
+      md5: 21886cfc3ebd88611735731f1d2aad42.dir
+      size: 92098590
+      nfiles: 80
