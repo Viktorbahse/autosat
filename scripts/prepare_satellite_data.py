@@ -9,7 +9,6 @@ from itertools import product
 from pathlib import Path
 from typing import Dict, List, Type, Union
 
-import h5py
 import httpx
 import mercantile
 import numpy as np
@@ -72,9 +71,8 @@ def tile_pixel_to_lonlat(x: int, y: int, z: int, px: int, py: int, tile_size: in
 
     return lon, lat
 
-def yandex_tile_pixel_to_lon_lat(x: int, y: int, z: int, px: int, py: int) -> tuple:
+def yandex_tile_pixel_to_lon_lat(x: int, y: int, z: int, px: int, py: int, tile_size: int = 256) -> tuple:
     pi = math.pi
-    tile_size = 256
 
     e = 0.0818191908426
 
@@ -296,6 +294,18 @@ def xyz_to_quadkey(x: int, y: int, z: int) -> str:
         quadkey += str(digit)
     return quadkey
 
+def crop_yandex_satellite(image, x1, y1, x_min, y_min, cfg):
+    lon, lat = tile_pixel_to_lonlat(x1, y1, cfg.zoom, 0, 0, cfg.tile_size)
+
+    lon_1, lat_1 = yandex_tile_pixel_to_lon_lat(x_min, y_min, cfg.zoom, 0, 0, cfg.tile_size)
+    lon_2, lat_2 = yandex_tile_pixel_to_lon_lat(x_min, y_min, cfg.zoom, 0, cfg.tile_size, cfg.tile_size)
+
+    step = cfg.tile_size*(lat_1-lat)/(lat_1-lat_2)
+
+    W, H = image.size
+    top = max(0, step)
+    bottom = min(H, top+cfg.tile_size*cfg.num_tiles)
+    return image.crop((0, top, W, bottom))
 
 def main(cfg: DictConfig):
     X1, Y1, X2, Y2 = get_xy_corners(cfg.map_box, cfg.zoom)
@@ -343,7 +353,7 @@ def main(cfg: DictConfig):
                 lon_max, lat_max = tile_pixel_to_lonlat(x2-1,y1,cfg.zoom, cfg.tile_size-1, 0)
                 x_min, y_max = lat_lon_to_yandex_tile(lat_min, lon_min, cfg.zoom)
                 x_max, y_min = lat_lon_to_yandex_tile(lat_max, lon_max, cfg.zoom)
-                corners = tuple(product(range(x_min, x_max+1), range(y_max, y_min-1, -1)))
+                corners = tuple(product(range(x_min, x_max+1), range(y_max+1, y_min-1, -1)))
             else:
                 corners = tuple(product(range(x1, x2), range(y1, y2)))
 
@@ -366,7 +376,8 @@ def main(cfg: DictConfig):
             if service == "yandex":
                 for feat, xy in zip(futures, corners):
                     if feat.result() is not None:
-                        image = paste_tile(image, feat.result(), xy, (x_min, y_min, x_max+1, y_max))
+                        image = paste_tile(image, feat.result(), xy, (x_min, y_min, x_max+1, y_max+1))
+                image = crop_yandex_satellite(image, x1, y1, x_min, y_min, cfg)
             else:
                 for feat, xy in zip(futures, corners):
                     if feat.result() is not None:
@@ -381,6 +392,8 @@ def main(cfg: DictConfig):
                 image.save(file)
                 print(file)
             if (X, Y) not in mask_cache:
+                if service == "yandex":
+                    corners = tuple(product(range(x1, x2), range(y1, y2)))
                 masks: List[np.array] = []
                 for obj_class in cfg.classes:
                     masks.append(None)

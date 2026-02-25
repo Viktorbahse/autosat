@@ -1,7 +1,7 @@
 prepare_satellite_data:
   classes: # Классы для сегментации
-  - [road, 255] # [имя класса, интенсивность маски]
-  - [building, 204]
+  - [road, 204] # [имя класса, интенсивность маски]
+  - [building, 255]
   - [parking, 153]
   - [water, 102]
   - [field, 51]
@@ -11,10 +11,10 @@ prepare_satellite_data:
   num_tiles: 10 # число тайлов по ширине и высоте изображения
   tile_size: 256 # размер тайла в пикселях
   map_box: ## Координаты, ограничивающие выбранную область
-  - 30.21137  # min_lon
-  - 59.93016  # min_lat
-  - 30.33497  # max_lon
-  - 59.98456  # max_lat
+  - 30.07091  # min_lon
+  - 59.79928  # min_lat
+  - 30.49624  # max_lon
+  - 60.07786  # max_lat
   osm: data/map.osm.pbf
   sources: ## TMS сервисы
     google: "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"

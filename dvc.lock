@@ -3,25 +3,25 @@ stages:
   download_and_extract_osm:
     cmd: wget -c --limit-rate=10M -P data/
       "https://download.geofabrik.de/russia/northwestern-fed-district-latest.osm.pbf"
-      && osmium extract --bbox "30.21137,59.93016,30.33497,59.98456"
+      && osmium extract --bbox "30.07091,59.79928,30.49624,60.07786"
       data/northwestern-fed-district-latest.osm.pbf --output data/map.osm.pbf
     params:
       params.yaml:
         prepare_satellite_data.map_box:
-        - 30.21137
-        - 59.93016
-        - 30.33497
-        - 59.98456
+        - 30.07091
+        - 59.79928
+        - 30.49624
+        - 60.07786
         prepare_satellite_data.osm: data/map.osm.pbf
     outs:
     - path: data/map.osm.pbf
       hash: md5
-      md5: 269c4596424839c3fad08f3950bdc6d6
-      size: 5172215
+      md5: a91d110db0110d2a08c7746c7554c852
+      size: 40553554
     - path: data/northwestern-fed-district-latest.osm.pbf
       hash: md5
-      md5: 733f1de0c259c02eb666efb46db50f50
-      size: 631217034
+      md5: 8a1687c2966bf46ff59300b0700b9882
+      size: 631396695
   prepare_satellite_data:
     cmd: python scripts/prepare_satellite_data.py
     params:
@@ -29,9 +29,9 @@ stages:
         prepare_satellite_data:
           classes:
           - - road
-            - 255
-          - - building
             - 204
+          - - building
+            - 255
           - - parking
             - 153
           - - water
@@ -44,10 +44,10 @@ stages:
           num_tiles: 10
           tile_size: 256
           map_box:
-          - 30.21137
-          - 59.93016
-          - 30.33497
-          - 59.98456
+          - 30.07091
+          - 59.79928
+          - 30.49624
+          - 60.07786
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -58,6 +58,6 @@ stages:
     outs:
     - path: data/satellite
       hash: md5
-      md5: 7fde691e5bc43df4f356adedfa653310.dir
-      size: 91897663
-      nfiles: 80
+      md5: d282f12e2d2e50bff1d62e0d5c9a43ce.dir
+      size: 1560556180
+      nfiles: 1500
