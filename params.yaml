@@ -1,0 +1,23 @@
+prepare_satellite_data:
+  classes: # Классы для сегментации
+  - [road, 204] # [имя класса, интенсивность маски]
+  - [building, 255]
+  - [parking, 153]
+  - [water, 102]
+  - [field, 51]
+  data_dir: data/satellite
+  max_workers: 5
+  zoom: 17 # zoom 17 соответствует примерно 1 px / m
+  num_tiles: 10 # число тайлов по ширине и высоте изображения
+  tile_size: 256 # размер тайла в пикселях
+  map_box: ## Координаты, ограничивающие выбранную область
+  - 30.07091  # min_lon
+  - 59.79928  # min_lat
+  - 30.49624  # max_lon
+  - 60.07786  # max_lat
+  osm: data/map.osm.pbf
+  sources: ## TMS сервисы
+    google: "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+    bing: "http://a0.ortho.tiles.virtualearth.net/tiles/a{}.jpeg?g=2"
+    arcgis: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    yandex: "https://sat04.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}"

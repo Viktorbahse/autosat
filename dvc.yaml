@@ -1,0 +1,19 @@
+stages:
+  download_and_extract_osm:
+    cmd: wget -c --limit-rate=10M -P data/ "https://download.geofabrik.de/russia/northwestern-fed-district-latest.osm.pbf" &&
+         osmium extract --bbox "${prepare_satellite_data.map_box[0]},${prepare_satellite_data.map_box[1]},${prepare_satellite_data.map_box[2]},${prepare_satellite_data.map_box[3]}" data/northwestern-fed-district-latest.osm.pbf --output ${prepare_satellite_data.osm}
+    outs:
+    - data/northwestern-fed-district-latest.osm.pbf
+    - ${prepare_satellite_data.osm}
+    params:
+    - prepare_satellite_data.map_box
+    - prepare_satellite_data.osm
+
+  prepare_satellite_data:
+    cmd: python scripts/prepare_satellite_data.py
+    outs:
+    - ${prepare_satellite_data.data_dir}
+    params:
+    - prepare_satellite_data
+
+            
