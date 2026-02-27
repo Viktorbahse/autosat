@@ -35,16 +35,20 @@
 
 ```bash
     # запустить pipeline по шагам
-    
+
     # stage 1:
     # скачать c https://download.geofabrik.de
     # OSM разметку для большой карты региона
-    # и сохранить разметку для prepare_data.map_box 
+    # и сохранить разметку для prepare_data.map_box
     dvc repro download_and_extract_osm
 
     # stage 2:
     # скачать и сохранить изображения и маски
     dvc repro prepare_satellite_data
+
+    # stage 3:
+    # объединить скачанные изображения и маски в один HDF-файл
+    dvc repro prepare_dataset
 ```
 
 #### **Pre-commit check**

@@ -10,11 +10,16 @@ prepare_satellite_data:
   zoom: 17 # zoom 17 соответствует примерно 1 px / m
   num_tiles: 10 # число тайлов по ширине и высоте изображения
   tile_size: 256 # размер тайла в пикселях
+  chunk_h: 2560 #h
+  chunk_w: 2560 #w
+  chunk_c: 5 #c
+  dataset_dir: data/dataset
+  hdf: layers.hdf
   map_box: ## Координаты, ограничивающие выбранную область
-  - 30.07091  # min_lon
-  - 59.79928  # min_lat
-  - 30.49624  # max_lon
-  - 60.07786  # max_lat
+  - 37.56895  # min_lon
+  - 55.71783  # min_lat
+  - 37.65015  # max_lon
+  - 55.76943  # max_lat
   osm: data/map.osm.pbf
   sources: ## TMS сервисы
     google: "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"

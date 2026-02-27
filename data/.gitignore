@@ -2,3 +2,5 @@
 /map.osm.pbf
 /satellite
 tmp*/
+/dataset
+/central-fed-district-latest.osm.pbf
