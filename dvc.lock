@@ -3,25 +3,25 @@ stages:
   download_and_extract_osm:
     cmd: wget -c --limit-rate=10M -P data/
       "https://download.geofabrik.de/russia/central-fed-district-latest.osm.pbf"
-      && osmium extract --bbox "37.56895,55.71783,37.65015,55.76943"
+      && osmium extract --bbox "36.9,55.38,38.0,56.0"
       data/central-fed-district-latest.osm.pbf --output data/map.osm.pbf
     params:
       params.yaml:
         prepare_satellite_data.map_box:
-        - 37.56895
-        - 55.71783
-        - 37.65015
-        - 55.76943
+        - 36.9
+        - 55.38
+        - 38.0
+        - 56.0
         prepare_satellite_data.osm: data/map.osm.pbf
     outs:
     - path: data/central-fed-district-latest.osm.pbf
       hash: md5
-      md5: cd0df8b935dc98398630eb190b8c796c
-      size: 854716052
+      md5: 0f7befe6125c570e83aa83aad249c364
+      size: 854895678
     - path: data/map.osm.pbf
       hash: md5
-      md5: 168603d4f5b580339f484b32570bfe5f
-      size: 7060009
+      md5: 77e3eff75deeb7215cfae5a8b3d53477
+      size: 115296563
   prepare_satellite_data:
     cmd: python scripts/prepare_satellite_data.py
     params:
@@ -39,20 +39,16 @@ stages:
           - - field
             - 51
           data_dir: data/satellite
-          max_workers: 5
+          max_workers: 8
           zoom: 17
           num_tiles: 10
           tile_size: 256
-          chunk_h: 2560
-          chunk_w: 2560
-          chunk_c: 5
           dataset_dir: data/dataset
-          hdf: layers.hdf
           map_box:
-          - 37.56895
-          - 55.71783
-          - 37.65015
-          - 55.76943
+          - 36.9
+          - 55.38
+          - 38.0
+          - 56.0
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -63,9 +59,9 @@ stages:
     outs:
     - path: data/satellite
       hash: md5
-      md5: 948b11940b09a76a9fb184296fb9a11c.dir
-      size: 63648350
-      nfiles: 45
+      md5: 65255190bf07a436f15ee4b79eec3448.dir
+      size: 9848242577
+      nfiles: 8000
   prepare_dataset:
     cmd: python scripts/prepare_dataset.py
     params:
@@ -83,20 +79,16 @@ stages:
           - - field
             - 51
           data_dir: data/satellite
-          max_workers: 5
+          max_workers: 8
           zoom: 17
           num_tiles: 10
           tile_size: 256
-          chunk_h: 2560
-          chunk_w: 2560
-          chunk_c: 5
           dataset_dir: data/dataset
-          hdf: layers.hdf
           map_box:
-          - 37.56895
-          - 55.71783
-          - 37.65015
-          - 55.76943
+          - 36.9
+          - 55.38
+          - 38.0
+          - 56.0
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -107,6 +99,6 @@ stages:
     outs:
     - path: data/dataset
       hash: md5
-      md5: d64c27b4ceb4119fb1310ce8ef1c3ec7.dir
-      size: 884740616
-      nfiles: 1
+      md5: 5e8da2119deab798acdf1c8229134c9e.dir
+      size: 136324710400
+      nfiles: 1600

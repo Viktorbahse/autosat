@@ -4,6 +4,7 @@ import json
 import math
 import sys
 import tempfile
+import time
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 from pathlib import Path
@@ -145,6 +146,7 @@ def get_tile(url):
             r = SESSION.get(url, timeout=60)
             break
         except Exception:
+            time.sleep(1)
             retry -= 1
             if not retry:
                 raise
@@ -310,8 +312,7 @@ def crop_yandex_satellite(image, x1, y1, x_min, y_min, cfg):
 def main(cfg: DictConfig):
     X1, Y1, X2, Y2 = get_xy_corners(cfg.map_box, cfg.zoom)
 
-    data_dir = make_dir(Path(cfg.data_dir) / f"{cfg.zoom}", delete_if_exist=True)
-
+    data_dir = make_dir(Path(cfg.data_dir) / f"{cfg.zoom}", delete_if_exist=False)
     mask_cache = set()
 
     feature_map_dict: Dict[str, dict] = {}
@@ -344,6 +345,8 @@ def main(cfg: DictConfig):
 
         for X, Y in product(range(X1, X2, cfg.num_tiles)[:-1], range(Y1, Y2, cfg.num_tiles)[:-1]):
             # генерация изображения
+            out_dir = make_dir(data_dir / f"{str(X).zfill(5)}" / f"{str(Y).zfill(5)}", delete_if_exist=False)
+            file = out_dir / f"{service}.jpg"
 
             x1, x2 = X, X + cfg.num_tiles
             y1, y2 = Y, Y + cfg.num_tiles
@@ -383,11 +386,6 @@ def main(cfg: DictConfig):
                     if feat.result() is not None:
                         image = paste_tile(image, feat.result(), xy, (x1, y1, x2, y2))
 
-            # сохранение изображения
-            out_dir = make_dir(data_dir / f"{str(X).zfill(5)}" / f"{str(Y).zfill(5)}", delete_if_exist=False)
-            file = out_dir / f"{service}.jpg"
-
-
             if image is not None:
                 image.save(file)
                 print(file)
@@ -416,5 +414,4 @@ def main(cfg: DictConfig):
 if __name__ == "__main__":
     cfg = OmegaConf.load("params.yaml")
     cfg = cfg["prepare_satellite_data"]
-
     main(cfg)
