@@ -6,7 +6,7 @@ prepare_satellite_data:
   - [water, 102]
   - [field, 51]
   data_dir: data/satellite
-  max_workers: 8
+  max_workers: 4
   zoom: 17 # zoom 17 соответствует примерно 1 px / m
   num_tiles: 10 # число тайлов по ширине и высоте изображения
   tile_size: 256 # размер тайла в пикселях

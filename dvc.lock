@@ -79,7 +79,7 @@ stages:
           - - field
             - 51
           data_dir: data/satellite
-          max_workers: 8
+          max_workers: 4
           zoom: 17
           num_tiles: 10
           tile_size: 256
@@ -99,6 +99,6 @@ stages:
     outs:
     - path: data/dataset
       hash: md5
-      md5: 5e8da2119deab798acdf1c8229134c9e.dir
+      md5: 872d0ff4da4906db5bfe6fdc308b91fc.dir
       size: 136324710400
       nfiles: 1600
