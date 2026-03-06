@@ -1,18 +1,14 @@
 import logging
 import os
-import time
 from collections import defaultdict
-from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from threading import Lock
-from typing import Dict, List, Tuple
 
 import h5py
 import numpy as np
 import rootutils
 from omegaconf import DictConfig, OmegaConf
 from PIL import Image, UnidentifiedImageError
-from tqdm import tqdm
 
 rootutils.setup_root(__file__, indicator="pyproject.toml", pythonpath=True)
 
