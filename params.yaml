@@ -22,3 +22,12 @@ prepare_satellite_data:
     bing: "http://a0.ortho.tiles.virtualearth.net/tiles/a{}.jpeg?g=2"
     arcgis: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     yandex: "https://sat04.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}"
+
+prepare_dataset:
+  sattelite_dir: data/satellite/17
+  dataset_dir: data/dataset
+  max_workers: 4
+  num_tiles: ${prepare_satellite_data.num_tiles}
+  tile_size: ${prepare_satellite_data.tile_size}
+  classes: ${prepare_satellite_data.classes}
+  zoom: ${prepare_satellite_data.zoom}

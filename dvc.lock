@@ -16,12 +16,12 @@ stages:
     outs:
     - path: data/central-fed-district-latest.osm.pbf
       hash: md5
-      md5: 0f7befe6125c570e83aa83aad249c364
-      size: 854895678
+      md5: 78529255598dcc6cb3c311d64c78c869
+      size: 855496502
     - path: data/map.osm.pbf
       hash: md5
-      md5: 77e3eff75deeb7215cfae5a8b3d53477
-      size: 115296563
+      md5: 2756409c2d046eca1d1e9bbe0447352d
+      size: 115338484
   prepare_satellite_data:
     cmd: python scripts/prepare_satellite_data.py
     params:
@@ -39,7 +39,7 @@ stages:
           - - field
             - 51
           data_dir: data/satellite
-          max_workers: 8
+          max_workers: 4
           zoom: 17
           num_tiles: 10
           tile_size: 256
@@ -59,8 +59,8 @@ stages:
     outs:
     - path: data/satellite
       hash: md5
-      md5: 65255190bf07a436f15ee4b79eec3448.dir
-      size: 9848242577
+      md5: 3dd5fb3239d2bdf8d78c918e674766a4.dir
+      size: 9848127779
       nfiles: 8000
   prepare_dataset:
     cmd: python scripts/prepare_dataset.py
@@ -99,6 +99,6 @@ stages:
     outs:
     - path: data/dataset
       hash: md5
-      md5: 872d0ff4da4906db5bfe6fdc308b91fc.dir
-      size: 136324710400
+      md5: dec183a583732bf5b530cd63bb95e49d.dir
+      size: 147074598400
       nfiles: 1600

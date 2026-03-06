@@ -141,22 +141,29 @@ def get_xy_corners(map_box: tuple[float, ...], zoom: int) -> tuple[int, ...]:
 def get_tile(url):
     retry = 10
 
-    while 1:
+    while retry:
         try:
             r = SESSION.get(url, timeout=60)
-            break
         except Exception:
             time.sleep(1)
             retry -= 1
-            if not retry:
-                raise
+            continue
 
-    if r.status_code == 404:
-        return None
-    elif not r.content:
-        return None
+        if r.status_code == 404:
+            return None
 
-    r.raise_for_status()
+        if not r.content:
+            return None
+
+        if 200 <= r.status_code < 300:
+            return r.content
+
+        if 400 <= r.status_code < 600:
+            time.sleep(1)
+            retry -= 1
+            continue
+
+        r.raise_for_status()
 
     return r.content
 
@@ -389,6 +396,7 @@ def main(cfg: DictConfig):
             if image is not None:
                 image.save(file)
                 print(file)
+
             if (X, Y) not in mask_cache:
                 if service == "yandex":
                     corners = tuple(product(range(x1, x2), range(y1, y2)))
@@ -407,7 +415,6 @@ def main(cfg: DictConfig):
                 mask.save(file, optimize=True)
                 print(file)
                 mask_cache.add((X, Y))
-
 
 
 
