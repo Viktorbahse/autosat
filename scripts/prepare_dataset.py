@@ -8,7 +8,7 @@ import h5py
 import numpy as np
 import rootutils
 from omegaconf import DictConfig, OmegaConf
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 
 rootutils.setup_root(__file__, indicator="pyproject.toml", pythonpath=True)
 
@@ -75,7 +75,7 @@ def process_layer(item: tuple[tuple[int, int], list[Path]], cfg: DictConfig, dat
 
 
 def main(cfg: DictConfig):
-    sat_dir = Path(cfg.sattelite_dir)
+    sat_dir = Path(cfg.satellite_dir)
     logger.info("Collecting files from %s", sat_dir)
     files = get_files(sat_dir)
     dataset_dir = make_dir(cfg.dataset_dir, delete_if_exist=True)
