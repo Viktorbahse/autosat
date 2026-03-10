@@ -102,3 +102,17 @@ stages:
       md5: dec183a583732bf5b530cd63bb95e49d.dir
       size: 147074598400
       nfiles: 1600
+  training:
+    cmd: python src/training.py
+    params:
+      params.yaml:
+        training:
+          random_seed: 42
+          dataset_dir: ${prepare_dataset.dataset_dir}
+          dataset_split:
+            train: 0.7
+            val: 0.15
+            test: 0.15
+          obj_class: road
+          max_workers: 4
+          compute_class_balance: true

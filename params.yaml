@@ -31,3 +31,14 @@ prepare_dataset:
   tile_size: ${prepare_satellite_data.tile_size}
   classes: ${prepare_satellite_data.classes}
   zoom: ${prepare_satellite_data.zoom}
+
+training:
+  random_seed: 42
+  dataset_dir: ${prepare_dataset.dataset_dir}
+  dataset_split:
+    train: 0.7
+    val: 0.15
+    test: 0.15
+  obj_class: road
+  max_workers: 4
+  compute_class_balance: true
