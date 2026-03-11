@@ -6,18 +6,28 @@ prepare_satellite_data:
   - [water, 102]
   - [field, 51]
   data_dir: data/satellite
-  max_workers: 5
+  max_workers: 4
   zoom: 17 # zoom 17 соответствует примерно 1 px / m
   num_tiles: 10 # число тайлов по ширине и высоте изображения
   tile_size: 256 # размер тайла в пикселях
+  dataset_dir: data/dataset
   map_box: ## Координаты, ограничивающие выбранную область
-  - 30.07091  # min_lon
-  - 59.79928  # min_lat
-  - 30.49624  # max_lon
-  - 60.07786  # max_lat
+  - 36.90000 # min_lon
+  - 55.38000 # min_lat
+  - 38.00000 # max_lon
+  - 56.00000 # max_lat
   osm: data/map.osm.pbf
   sources: ## TMS сервисы
     google: "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
     bing: "http://a0.ortho.tiles.virtualearth.net/tiles/a{}.jpeg?g=2"
     arcgis: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     yandex: "https://sat04.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}"
+
+prepare_dataset:
+  satellite_dir: data/satellite/17
+  dataset_dir: data/dataset
+  max_workers: 4
+  num_tiles: ${prepare_satellite_data.num_tiles}
+  tile_size: ${prepare_satellite_data.tile_size}
+  classes: ${prepare_satellite_data.classes}
+  zoom: ${prepare_satellite_data.zoom}
