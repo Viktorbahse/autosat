@@ -1,15 +1,18 @@
 import logging
 import random
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import h5py
 import numpy as np
 import rootutils
+import torch
 from omegaconf import DictConfig, OmegaConf
 
 rootutils.setup_root(__file__, indicator="pyproject.toml", pythonpath=True)
 
+from src.unet import UNet
 from src.utils import set_seed
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
@@ -57,22 +60,42 @@ def split(files, train_ratio, val_ratio, test_ratio, seed):
 
 
 def main(cfg: DictConfig):  # noqa: WPS210
+
+    device = torch.device("cuda" if cfg.model.common.cuda else "cpu")
+    if cfg.model.common.cuda and not torch.cuda.is_available():
+        sys.exit("Error: CUDA requested but not available")
+    # checkpoints_dir = make_dir(cfg.model.common.checkpoints_dir, delete_if_exist=True)
+
+    num_classes = 2
+
+    net = UNet(num_classes)
+    net = net.to(device)
+
+    if cfg.model.common.cuda:
+        torch.backends.cudnn.benchmark = True
+
     set_seed(cfg.random_seed)
-    dataset_dir = Path(cfg.dataset_dir)
-    train_ratio, val_ratio, test_ratio = (cfg.dataset_split.train, cfg.dataset_split.val, cfg.dataset_split.test)
+    dataset_dir = Path(cfg.dataset.dataset_dir)
+    train_ratio, val_ratio, test_ratio = (
+        cfg.dataset.dataset_split.train,
+        cfg.dataset.dataset_split.val,
+        cfg.dataset.dataset_split.test,
+    )
 
     files = get_files(dataset_dir)
 
-    train_files, val_files, test_files = split(files, test_ratio, val_ratio, test_ratio, cfg.random_seed)
+    train_files, val_files, test_files = split(files, train_ratio, val_ratio, test_ratio, cfg.random_seed)
 
     logger.info(f"Доли — train: {train_ratio}, val: {val_ratio}, test: {test_ratio}.")
     logger.info("Количество файлов — train: %d, val: %d, test: %d.", len(train_files), len(val_files), len(test_files))
 
-    if cfg.compute_class_balance:
-        class_fraction = compyting_class_balanse(cfg.obj_class, train_files + val_files, max_workers=cfg.max_workers)
+    if cfg.dataset.compute_class_balance:
+        class_fraction = compyting_class_balanse(
+            cfg.dataset.obj_class, train_files + val_files, max_workers=cfg.max_workers
+        )
     else:
         class_fraction = 0.5
-    logger.info(f"Доля {cfg.obj_class} в данных для обучения модели: {class_fraction}.")
+    logger.info(f"Доля {cfg.dataset.obj_class} в данных для обучения модели: {class_fraction}.")
 
 
 if __name__ == "__main__":
