@@ -67,9 +67,11 @@ def process_layer(item: tuple[tuple[int, int], list[Path]], cfg: DictConfig, dat
         h5f.attrs["zoom"] = cfg.zoom
         h5f.attrs["x"] = x
         h5f.attrs["y"] = y
-
+        h5f.attrs["background"] = 0
+        h5f.attrs["background_number_of_pixels"] = np.sum(data[..., -1] == 0)
         for class_name, pixel_val in cfg.classes:
             h5f.attrs[class_name] = pixel_val
+            h5f.attrs[class_name+'_number_of_pixels'] = np.sum(data[..., -1] == pixel_val)
 
     return True
 

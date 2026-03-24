@@ -23,6 +23,8 @@ dependencies = [
     "wemake-python-styleguide>=1.5.0",
     "mercantile>=1.2.1",
     "dvc[ssh]>=3.66.1",
+    "torchvision",
+    "albumentations",
 ]
 
 [tool.ruff]
@@ -42,6 +44,7 @@ exclude = [
 [tool.flake8]
 exclude = [
     "scripts/*.py",
+    "src/*.py", #TODO убрать
 ]
 # Оставляем только правила WPS, так как остальное проверит Ruff
 select = "WPS"
@@ -64,4 +67,3 @@ exclude = [
     "^scripts/",
 ]
 explicit_package_bases = true
-

@@ -3,25 +3,25 @@ stages:
   download_and_extract_osm:
     cmd: wget -c --limit-rate=10M -P data/
       "https://download.geofabrik.de/russia/central-fed-district-latest.osm.pbf"
-      && osmium extract --bbox "36.9,55.38,38.0,56.0"
+      && osmium extract --bbox "37.38132,55.88128,37.52346,55.95035"
       data/central-fed-district-latest.osm.pbf --output data/map.osm.pbf
     params:
       params.yaml:
         prepare_satellite_data.map_box:
-        - 36.9
-        - 55.38
-        - 38.0
-        - 56.0
+        - 37.38132
+        - 55.88128
+        - 37.52346
+        - 55.95035
         prepare_satellite_data.osm: data/map.osm.pbf
     outs:
     - path: data/central-fed-district-latest.osm.pbf
       hash: md5
-      md5: 78529255598dcc6cb3c311d64c78c869
-      size: 855496502
+      md5: 6330686fcc04095372529ceb58dd5081
+      size: 857809422
     - path: data/map.osm.pbf
       hash: md5
-      md5: 2756409c2d046eca1d1e9bbe0447352d
-      size: 115338484
+      md5: 53b2e331ab82b9813f03d2a49f3e2efa
+      size: 2536326
   prepare_satellite_data:
     cmd: python scripts/prepare_satellite_data.py
     params:
@@ -30,14 +30,6 @@ stages:
           classes:
           - - road
             - 204
-          - - building
-            - 255
-          - - parking
-            - 153
-          - - water
-            - 102
-          - - field
-            - 51
           data_dir: data/satellite
           max_workers: 4
           zoom: 17
@@ -45,10 +37,10 @@ stages:
           tile_size: 256
           dataset_dir: data/dataset
           map_box:
-          - 36.9
-          - 55.38
-          - 38.0
-          - 56.0
+          - 37.38132
+          - 55.88128
+          - 37.52346
+          - 55.95035
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -59,9 +51,9 @@ stages:
     outs:
     - path: data/satellite
       hash: md5
-      md5: 3dd5fb3239d2bdf8d78c918e674766a4.dir
-      size: 9848127779
-      nfiles: 8000
+      md5: 6833b9b8ca005b7a39bb1991b88b583a.dir
+      size: 133855997
+      nfiles: 100
   prepare_dataset:
     cmd: python scripts/prepare_dataset.py
     params:
@@ -70,14 +62,6 @@ stages:
           classes:
           - - road
             - 204
-          - - building
-            - 255
-          - - parking
-            - 153
-          - - water
-            - 102
-          - - field
-            - 51
           data_dir: data/satellite
           max_workers: 4
           zoom: 17
@@ -85,10 +69,10 @@ stages:
           tile_size: 256
           dataset_dir: data/dataset
           map_box:
-          - 36.9
-          - 55.38
-          - 38.0
-          - 56.0
+          - 37.38132
+          - 55.88128
+          - 37.52346
+          - 55.95035
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -99,9 +83,9 @@ stages:
     outs:
     - path: data/dataset
       hash: md5
-      md5: dec183a583732bf5b530cd63bb95e49d.dir
-      size: 147074598400
-      nfiles: 1600
+      md5: 09080b92a422cc59bb6801791fc73b3e.dir
+      size: 1838432160
+      nfiles: 20
   training:
     cmd: python src/training.py
     params:
