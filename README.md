@@ -50,7 +50,7 @@
     # объединить скачанные изображения и маски в один HDF-файл
     dvc repro prepare_dataset
 
-    # stage 4:
+    # stage 4
     # обучение модели
     dvc repro training
     # для просмотра логов обучения необходимо выполнить в терминале команд tensorboard --logdir=data/logs/tensorboard
