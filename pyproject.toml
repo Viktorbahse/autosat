@@ -25,6 +25,9 @@ dependencies = [
     "dvc[ssh]>=3.66.1",
     "torchvision",
     "albumentations",
+    "pytest",
+    "tensorboard",
+    "torch==2.5.1",
 ]
 
 [tool.ruff]
@@ -44,14 +47,13 @@ exclude = [
 [tool.flake8]
 exclude = [
     "scripts/*.py",
-    "src/*.py", #TODO убрать
 ]
 # Оставляем только правила WPS, так как остальное проверит Ruff
 select = "WPS"
 # Настройка специфичных для WPS параметров
 max-line-length = 120
 show-source = true
-ignore = ["WPS111", "WPS420", "WPS100"]
+ignore = ["WPS111", "WPS420", "WPS100", "WPS201"]
 max-methods = 10
 max-line-complexity = 20
 max-module-members = 10

@@ -3,25 +3,25 @@ stages:
   download_and_extract_osm:
     cmd: wget -c --limit-rate=10M -P data/
       "https://download.geofabrik.de/russia/central-fed-district-latest.osm.pbf"
-      && osmium extract --bbox "37.38132,55.88128,37.52346,55.95035"
+      && osmium extract --bbox "37.50011,55.80881,37.7401,55.914"
       data/central-fed-district-latest.osm.pbf --output data/map.osm.pbf
     params:
       params.yaml:
         prepare_satellite_data.map_box:
-        - 37.38132
-        - 55.88128
-        - 37.52346
-        - 55.95035
+        - 37.50011
+        - 55.80881
+        - 37.7401
+        - 55.914
         prepare_satellite_data.osm: data/map.osm.pbf
     outs:
     - path: data/central-fed-district-latest.osm.pbf
       hash: md5
-      md5: 6330686fcc04095372529ceb58dd5081
-      size: 857809422
+      md5: e76b8a066831476c1060043e038e0de2
+      size: 858392544
     - path: data/map.osm.pbf
       hash: md5
-      md5: 53b2e331ab82b9813f03d2a49f3e2efa
-      size: 2536326
+      md5: 427bb8b007e9c1d571b073147170c450
+      size: 11439703
   prepare_satellite_data:
     cmd: python scripts/prepare_satellite_data.py
     params:
@@ -29,7 +29,7 @@ stages:
         prepare_satellite_data:
           classes:
           - - road
-            - 204
+            - 255
           data_dir: data/satellite
           max_workers: 4
           zoom: 17
@@ -37,10 +37,10 @@ stages:
           tile_size: 256
           dataset_dir: data/dataset
           map_box:
-          - 37.38132
-          - 55.88128
-          - 37.52346
-          - 55.95035
+          - 37.50011
+          - 55.80881
+          - 37.7401
+          - 55.914
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -51,9 +51,9 @@ stages:
     outs:
     - path: data/satellite
       hash: md5
-      md5: 6833b9b8ca005b7a39bb1991b88b583a.dir
-      size: 133855997
-      nfiles: 100
+      md5: 90bb2087de8c1661f1ba1341b5c9ddf4.dir
+      size: 313010417
+      nfiles: 240
   prepare_dataset:
     cmd: python scripts/prepare_dataset.py
     params:
@@ -61,7 +61,7 @@ stages:
         prepare_satellite_data:
           classes:
           - - road
-            - 204
+            - 255
           data_dir: data/satellite
           max_workers: 4
           zoom: 17
@@ -69,10 +69,10 @@ stages:
           tile_size: 256
           dataset_dir: data/dataset
           map_box:
-          - 37.38132
-          - 55.88128
-          - 37.52346
-          - 55.95035
+          - 37.50011
+          - 55.80881
+          - 37.7401
+          - 55.914
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -83,20 +83,43 @@ stages:
     outs:
     - path: data/dataset
       hash: md5
-      md5: 09080b92a422cc59bb6801791fc73b3e.dir
-      size: 1838432160
-      nfiles: 20
+      md5: b843fa79e49c473618d3f63d2193cc2c.dir
+      size: 4412237184
+      nfiles: 48
   training:
-    cmd: python src/training.py
+    cmd: python src/train.py
+    deps:
+    - path: data/dataset
+      hash: md5
+      md5: b843fa79e49c473618d3f63d2193cc2c.dir
+      size: 4412237184
+      nfiles: 48
     params:
       params.yaml:
         training:
           random_seed: 42
-          dataset_dir: ${prepare_dataset.dataset_dir}
-          dataset_split:
-            train: 0.7
-            val: 0.15
-            test: 0.15
-          obj_class: road
-          max_workers: 4
-          compute_class_balance: true
+          checkpoint_dir: data/checkpoint
+          classes: ${prepare_satellite_data.classes}
+          num_epoch: 1
+          loader:
+            dataset_dir: ${prepare_dataset.dataset_dir}
+            train_ratio: 0.7
+            val_ratio: 0.15
+            test_ratio: 0.15
+            batch_size: 1
+            num_workers: 4
+            image_size: 256
+          model:
+            loss: Lovasz
+            cuda: true
+            num_classes: 2
+            opt:
+              lr: 0.001
+              betas:
+              - 0.9
+              - 0.999
+              eps: 1e-08
+              weight_decay: 0.01
+            sch:
+              num_epoch: ${training.num_epoch}
+              eta_min: 1e-06

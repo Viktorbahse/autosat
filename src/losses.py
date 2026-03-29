@@ -1,10 +1,9 @@
 """PyTorch-compatible losses and loss functions."""
 
 import torch
-import torch.nn as nn
 
 
-class CrossEntropyLoss2d(nn.Module):
+class CrossEntropyLoss2d(torch.nn.Module):
     """Cross-entropy.
 
     See: http://cs231n.github.io/neural-networks-2/#losses
@@ -18,13 +17,13 @@ class CrossEntropyLoss2d(nn.Module):
         """
 
         super().__init__()
-        self.nll_loss = nn.NLLLoss(weight)
+        self.nll_loss = torch.nn.NLLLoss(weight)
 
     def forward(self, inputs, targets):
-        return self.nll_loss(nn.functional.log_softmax(inputs, dim=1), targets)
+        return self.nll_loss(torch.nn.functional.log_softmax(inputs, dim=1), targets)
 
 
-class FocalLoss2d(nn.Module):
+class FocalLoss2d(torch.nn.Module):
     """Focal Loss.
 
     Reduces loss for well-classified samples putting focus on hard mis-classified samples.
@@ -41,15 +40,15 @@ class FocalLoss2d(nn.Module):
         """
 
         super().__init__()
-        self.nll_loss = nn.NLLLoss(weight)
+        self.nll_loss = torch.nn.NLLLoss(weight)
         self.gamma = gamma
 
     def forward(self, inputs, targets):
-        penalty = (1 - nn.functional.softmax(inputs, dim=1)) ** self.gamma
-        return self.nll_loss(penalty * nn.functional.log_softmax(inputs, dim=1), targets)
+        penalty = (1 - torch.nn.functional.softmax(inputs, dim=1)) ** self.gamma
+        return self.nll_loss(penalty * torch.nn.functional.log_softmax(inputs, dim=1), targets)
 
 
-class mIoULoss2d(nn.Module):
+class mIoULoss2d(torch.nn.Module):
     """mIoU Loss.
 
     See:
@@ -65,39 +64,42 @@ class mIoULoss2d(nn.Module):
         """
 
         super().__init__()
-        self.nll_loss = nn.NLLLoss(weight)
+        self.nll_loss = torch.nn.NLLLoss(weight)
 
-    def forward(self, inputs, targets):
-
+    def forward(self, inputs, targets):  # noqa: WPS210
         N, C, H, W = inputs.size()
 
-        softs = nn.functional.softmax(inputs, dim=1).permute(1, 0, 2, 3)
-        masks = torch.zeros(N, C, H, W).to(targets.device).scatter_(1, targets.view(N, 1, H, W), 1).permute(1, 0, 2, 3)
+        # Ensure targets are int64 for scatter operation
+        targets = targets.long()  # Add this line to ensure int64 dtype
+
+        softs = torch.nn.functional.softmax(inputs, dim=1).permute(1, 0, 2, 3)
+        masks = torch.zeros(N, C, H, W, device=targets.device)
+        masks.scatter_(1, targets.view(N, 1, H, W), 1)
+        masks = masks.permute(1, 0, 2, 3)
 
         inters = softs * masks
         unions = (softs + masks) - (softs * masks)
 
-        miou = 1.0 - (inters.view(C, N, -1).sum(2) / unions.view(C, N, -1).sum(2)).mean()
+        inters_flat = inters.view(C, N, -1).sum(2)
+        unions_flat = unions.view(C, N, -1).sum(2)
+        miou = 1.0 - (inters_flat / unions_flat).mean()
 
-        return max(miou, self.nll_loss(nn.functional.log_softmax(inputs, dim=1), targets))
+        return max(miou, self.nll_loss(torch.nn.functional.log_softmax(inputs, dim=1), targets))
 
 
-class LovaszLoss2d(nn.Module):
+class LovaszLoss2d(torch.nn.Module):
     """Lovasz Loss.
 
     See: https://arxiv.org/abs/1705.08790
     """
 
-    def __init__(self):
-        """Creates a `LovaszLoss2d` instance."""
-        super().__init__()
-
-    def forward(self, inputs, targets):
+    def forward(self, inputs, targets):  # noqa: WPS210
 
         N, C, H, W = inputs.size()
-        masks = torch.zeros(N, C, H, W).to(targets.device).scatter_(1, targets.view(N, 1, H, W), 1)
+        masks = torch.zeros(N, C, H, W).to(targets.device)
+        masks = masks.scatter_(1, targets.view(N, 1, H, W), 1)
 
-        loss = 0.0
+        loss = float(0)
 
         for mask, input in zip(masks.view(N, -1), inputs.view(N, -1)):
             max_margin_errors = 1.0 - ((mask * 2 - 1) * input)
@@ -110,8 +112,8 @@ class LovaszLoss2d(nn.Module):
 
             p = len(labels_sorted)
             if p > 1:
-                iou[1:p] = iou[1:p] - iou[0:-1]
+                iou[1:p] = iou[1:p] - iou[0:-1]  # noqa: WPS362 WPS349
 
-            loss += torch.dot(nn.functional.relu(errors_sorted), iou)
+            loss += torch.dot(torch.nn.functional.relu(errors_sorted), iou)
 
         return loss / N

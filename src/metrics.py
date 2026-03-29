@@ -5,6 +5,8 @@ import math
 import numpy as np
 import torch
 
+NAN = float("nan")
+
 
 class Metrics:
     """Tracking mean metrics"""
@@ -17,39 +19,65 @@ class Metrics:
         """
 
         self.labels = labels
+        self.num_classes = len(labels)
 
-        self.tn = 0
-        self.fn = 0
-        self.fp = 0
-        self.tp = 0
+        # Initialize confusion matrix
+        self.confusion_matrix = torch.zeros((self.num_classes, self.num_classes), dtype=torch.long)
 
-    def add(self, actual, predicted):
-        """Adds an observation to the tracker.
+    def add(self, predicted, actual):  # noqa: WPS210
+        """Adds an observation to the tracker."""
 
-        Args:
-          actual: the ground truth labels.
-          predicted: the predicted labels.
-        """
+        predicted_classes = torch.argmax(predicted, dim=1)  # shape: [N, H, W]
 
-        masks = torch.argmax(predicted, 0)
-        confusion = masks.view(-1).float() / actual.view(-1).float()
+        predicted_flat = predicted_classes.view(-1)
+        actual_flat = actual.view(-1)
 
-        self.tn += torch.sum(torch.isnan(confusion)).item()
-        self.fn += torch.sum(confusion == float("inf")).item()
-        self.fp += torch.sum(confusion == 0).item()
-        self.tp += torch.sum(confusion == 1).item()
+        valid_mask = actual_flat >= 0
+        predicted_flat = predicted_flat[valid_mask]
+        actual_flat = actual_flat[valid_mask]
 
-    def get_miou(self):
+        valid_true = (actual_flat >= 0) & (actual_flat < self.num_classes)
+        valid_pred = (predicted_flat >= 0) & (predicted_flat < self.num_classes)
+        valid = valid_true & valid_pred
+
+        actual_flat = actual_flat[valid]
+        predicted_flat = predicted_flat[valid]
+
+        if len(actual_flat) > 0:
+            device = self.confusion_matrix.device
+            actual_flat = actual_flat.to(device)
+            predicted_flat = predicted_flat.to(device)
+
+            idx = actual_flat * self.num_classes + predicted_flat
+            counts = torch.bincount(idx, minlength=self.num_classes * self.num_classes)
+            counts = counts.to(device)
+            self.confusion_matrix += counts.view(self.num_classes, self.num_classes)
+
+    def get_miou(self):  # noqa: WPS210
         """Retrieves the mean Intersection over Union score.
 
         Returns:
           The mean Intersection over Union score for all observations seen so far.
         """
-        try:
-            miou = np.nanmean([self.tn / (self.tn + self.fn + self.fp), self.tp / (self.tp + self.fn + self.fp)])
-        except ZeroDivisionError:
-            miou = float("NaN")
+        # Calculate IoU for each class
+        ious = []
+        for i in range(self.num_classes):
+            # True positives: diagonal element for class i
+            tp = self.confusion_matrix[i, i].item()
+            # False positives: sum of column i minus tp
+            fp = self.confusion_matrix[0:-1, i].sum().item() - tp
+            # False negatives: sum of row i minus tp
+            fn = self.confusion_matrix[i, 0:-1].sum().item() - tp
 
+            denominator = tp + fp + fn
+            if denominator > 0:
+                iou = tp / denominator
+            else:
+                iou = NAN
+            ious.append(iou)
+
+        # Calculate mean IoU (ignoring NaN values)
+        miou = np.nanmean(ious)
         return miou
 
     def get_fg_iou(self):
@@ -58,30 +86,49 @@ class Metrics:
         Returns:
           The foreground Intersection over Union score for all observations seen so far.
         """
+        # Assuming class 1 is foreground (adjust if needed)
+        if self.num_classes < 2:
+            return NAN
 
-        try:
-            iou = self.tp / (self.tp + self.fn + self.fp)
-        except ZeroDivisionError:
-            iou = float("NaN")
+        # For binary segmentation, class 1 is foreground
+        tp = self.confusion_matrix[1, 1].item()
+        fp = self.confusion_matrix[0:-1, 1].sum().item() - tp
+        fn = self.confusion_matrix[1, 0:-1].sum().item() - tp
+
+        denominator = tp + fp + fn
+        if denominator > 0:
+            iou = tp / denominator
+        else:
+            iou = NAN
 
         return iou
 
-    def get_mcc(self):
+    def get_mcc(self):  # noqa: WPS210
         """Retrieves the Matthew's Coefficient Correlation score.
 
         Returns:
           The Matthew's Coefficient Correlation score for all observations seen so far.
         """
+        # For multi-class, MCC is complex; here we implement binary MCC
+        if self.num_classes != 2:
+            return NAN
 
-        try:
-            mcc = (self.tp * self.tn - self.fp * self.fn) / math.sqrt(
-                (self.tp + self.fp) * (self.tp + self.fn) * (self.tn + self.fp) * (self.tn + self.fn)
-            )
-        except ZeroDivisionError:
-            mcc = float("NaN")
+        # Extract confusion matrix elements for binary case
+        tn = self.confusion_matrix[0, 0].item()
+        fp = self.confusion_matrix[0, 1].item()
+        fn = self.confusion_matrix[1, 0].item()
+        tp = self.confusion_matrix[1, 1].item()
+
+        num = tp * tn - fp * fn
+        den = math.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
+        mcc = float("nan") if den == 0 else num / den
 
         return mcc
 
+    def compute(self):
+        """Compute the primary metric (mIoU) for the current state."""
+        return self.get_miou()
 
-# Todo:
-# - Rewrite mIoU to handle N classes (and not only binary SemSeg)
+    def reset(self):
+        """Reset the metrics."""
+        self.confusion_matrix = torch.zeros((self.num_classes, self.num_classes), dtype=torch.long)

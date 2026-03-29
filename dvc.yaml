@@ -23,7 +23,9 @@ stages:
     params:
     - prepare_satellite_data
 
-  #training:
-  #  cmd: python src/training.py
-  #  params:
-  #  - training
+  training:
+    cmd: python src/train.py
+    deps:
+    - ${prepare_dataset.dataset_dir}
+    params:
+    - training
