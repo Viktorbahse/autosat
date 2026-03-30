@@ -3,15 +3,15 @@ stages:
   download_and_extract_osm:
     cmd: wget -c --limit-rate=10M -P data/
       "https://download.geofabrik.de/russia/central-fed-district-latest.osm.pbf"
-      && osmium extract --bbox "37.62,55.62,37.7,55.7"
+      && osmium extract --bbox "37.37411,55.63187,37.60483,55.74006"
       data/central-fed-district-latest.osm.pbf --output data/map.osm.pbf
     params:
       params.yaml:
         prepare_satellite_data.map_box:
-        - 37.62
-        - 55.62
-        - 37.7
-        - 55.7
+        - 37.37411
+        - 55.63187
+        - 37.60483
+        - 55.74006
         prepare_satellite_data.osm: data/map.osm.pbf
     outs:
     - path: data/central-fed-district-latest.osm.pbf
@@ -20,8 +20,8 @@ stages:
       size: 858465154
     - path: data/map.osm.pbf
       hash: md5
-      md5: a2b1bc98e33a2c0e71c374e84f82552e
-      size: 2331088
+      md5: 67e4196db5425da2b05fc8c446dbb28b
+      size: 9654251
   prepare_satellite_data:
     cmd: python scripts/prepare_satellite_data.py
     params:
@@ -30,6 +30,8 @@ stages:
           classes:
           - - building
             - 255
+          - - road
+            - 204
           data_dir: data/satellite
           max_workers: 4
           zoom: 17
@@ -37,10 +39,10 @@ stages:
           tile_size: 256
           dataset_dir: data/dataset
           map_box:
-          - 37.62
-          - 55.62
-          - 37.7
-          - 55.7
+          - 37.37411
+          - 55.63187
+          - 37.60483
+          - 55.74006
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -51,9 +53,9 @@ stages:
     outs:
     - path: data/satellite
       hash: md5
-      md5: af89483ec54f507f5165a6327b31de71.dir
-      size: 61350297
-      nfiles: 50
+      md5: 94bd1cec56002facfef704405af5ff7d.dir
+      size: 368034868
+      nfiles: 280
   prepare_dataset:
     cmd: python scripts/prepare_dataset.py
     params:
@@ -62,6 +64,8 @@ stages:
           classes:
           - - building
             - 255
+          - - road
+            - 204
           data_dir: data/satellite
           max_workers: 4
           zoom: 17
@@ -69,10 +73,10 @@ stages:
           tile_size: 256
           dataset_dir: data/dataset
           map_box:
-          - 37.62
-          - 55.62
-          - 37.7
-          - 55.7
+          - 37.37411
+          - 55.63187
+          - 37.60483
+          - 55.74006
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -83,24 +87,24 @@ stages:
     outs:
     - path: data/dataset
       hash: md5
-      md5: df156782874b67b79e931c2b68ed980e.dir
-      size: 919216240
-      nfiles: 10
+      md5: 2f2dfb679303e4ff25cbc1d167a93bab.dir
+      size: 5147618112
+      nfiles: 56
   training:
     cmd: python src/train.py
     deps:
     - path: data/dataset
       hash: md5
-      md5: df156782874b67b79e931c2b68ed980e.dir
-      size: 919216240
-      nfiles: 10
+      md5: 2f2dfb679303e4ff25cbc1d167a93bab.dir
+      size: 5147618112
+      nfiles: 56
     params:
       params.yaml:
         training:
           random_seed: 42
           checkpoint_dir: data/checkpoint
           classes: ${prepare_satellite_data.classes}
-          num_epoch: 1
+          num_epoch: 10
           loader:
             dataset_dir: ${prepare_dataset.dataset_dir}
             train_ratio: 0.7
@@ -113,7 +117,7 @@ stages:
             loss: mIoU
             metric: mcc
             cuda: true
-            num_classes: 2
+            num_classes: 3
             opt:
               lr: 0.001
               betas:
