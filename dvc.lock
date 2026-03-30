@@ -3,32 +3,32 @@ stages:
   download_and_extract_osm:
     cmd: wget -c --limit-rate=10M -P data/
       "https://download.geofabrik.de/russia/central-fed-district-latest.osm.pbf"
-      && osmium extract --bbox "37.4769,55.62708,37.65942,55.704"
+      && osmium extract --bbox "37.62,55.62,37.7,55.7"
       data/central-fed-district-latest.osm.pbf --output data/map.osm.pbf
     params:
       params.yaml:
         prepare_satellite_data.map_box:
-        - 37.4769
-        - 55.62708
-        - 37.65942
-        - 55.704
+        - 37.62
+        - 55.62
+        - 37.7
+        - 55.7
         prepare_satellite_data.osm: data/map.osm.pbf
     outs:
     - path: data/central-fed-district-latest.osm.pbf
       hash: md5
-      md5: e76b8a066831476c1060043e038e0de2
-      size: 858392544
+      md5: ad9b04a8e07e904fa232d1f48ebaaee2
+      size: 858465154
     - path: data/map.osm.pbf
       hash: md5
-      md5: 59df0d6952f0c2d7c892d74276c53a7a
-      size: 5810029
+      md5: a2b1bc98e33a2c0e71c374e84f82552e
+      size: 2331088
   prepare_satellite_data:
     cmd: python scripts/prepare_satellite_data.py
     params:
       params.yaml:
         prepare_satellite_data:
           classes:
-          - - road
+          - - building
             - 255
           data_dir: data/satellite
           max_workers: 4
@@ -37,10 +37,10 @@ stages:
           tile_size: 256
           dataset_dir: data/dataset
           map_box:
-          - 37.4769
-          - 55.62708
-          - 37.65942
-          - 55.704
+          - 37.62
+          - 55.62
+          - 37.7
+          - 55.7
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -51,16 +51,16 @@ stages:
     outs:
     - path: data/satellite
       hash: md5
-      md5: ccd91be116d68c2d51079062b3965f74.dir
-      size: 192987804
-      nfiles: 150
+      md5: af89483ec54f507f5165a6327b31de71.dir
+      size: 61350297
+      nfiles: 50
   prepare_dataset:
     cmd: python scripts/prepare_dataset.py
     params:
       params.yaml:
         prepare_satellite_data:
           classes:
-          - - road
+          - - building
             - 255
           data_dir: data/satellite
           max_workers: 4
@@ -69,10 +69,10 @@ stages:
           tile_size: 256
           dataset_dir: data/dataset
           map_box:
-          - 37.4769
-          - 55.62708
-          - 37.65942
-          - 55.704
+          - 37.62
+          - 55.62
+          - 37.7
+          - 55.7
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -83,24 +83,24 @@ stages:
     outs:
     - path: data/dataset
       hash: md5
-      md5: 90f4337866a57f5068869463d4adf2e8.dir
-      size: 2757648240
-      nfiles: 30
+      md5: df156782874b67b79e931c2b68ed980e.dir
+      size: 919216240
+      nfiles: 10
   training:
     cmd: python src/train.py
     deps:
     - path: data/dataset
       hash: md5
-      md5: 90f4337866a57f5068869463d4adf2e8.dir
-      size: 2757648240
-      nfiles: 30
+      md5: df156782874b67b79e931c2b68ed980e.dir
+      size: 919216240
+      nfiles: 10
     params:
       params.yaml:
         training:
           random_seed: 42
           checkpoint_dir: data/checkpoint
           classes: ${prepare_satellite_data.classes}
-          num_epoch: 15
+          num_epoch: 1
           loader:
             dataset_dir: ${prepare_dataset.dataset_dir}
             train_ratio: 0.7
@@ -111,6 +111,7 @@ stages:
             image_size: 256
           model:
             loss: mIoU
+            metric: mcc
             cuda: true
             num_classes: 2
             opt:

@@ -204,8 +204,8 @@ class Model(LightningModule):  # noqa: WSP 214
         self.train_loss = MeanMetric()
         self.val_loss = MeanMetric()
 
-        self.val_metric = Metrics(range(self.cfg.num_classes))
-        self.test_metric = Metrics(range(self.cfg.num_classes))
+        self.val_metric = Metrics(range(self.cfg.num_classes), self.cfg.metric)
+        self.test_metric = Metrics(range(self.cfg.num_classes), self.cfg.metric)
 
         self.net = UNet(self.cfg.num_classes)
 

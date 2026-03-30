@@ -1,6 +1,6 @@
 prepare_satellite_data:
   classes: # Классы для сегментации
-  - [road, 255] # [имя класса, интенсивность маски]
+  - [building, 255] # [имя класса, интенсивность маски]
   data_dir: data/satellite
   max_workers: 4
   zoom: 17 # zoom 17 соответствует примерно 1 px / m
@@ -8,10 +8,10 @@ prepare_satellite_data:
   tile_size: 256 # размер тайла в пикселях
   dataset_dir: data/dataset
   map_box: ## Координаты, ограничивающие выбранную область
-  - 37.47690 # min_lon
-  - 55.62708 # min_lat
-  - 37.65942 # max_lon
-  - 55.70400 # max_lat
+  - 37.62000 # min_lon
+  - 55.62000 # min_lat
+  - 37.70000 # max_lon
+  - 55.70000 # max_lat
   osm: data/map.osm.pbf
   sources: ## TMS сервисы
     google: "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
@@ -32,7 +32,7 @@ training:
   random_seed: 42
   checkpoint_dir: data/checkpoint
   classes: ${prepare_satellite_data.classes}
-  num_epoch: 15
+  num_epoch: 1
   loader:
     dataset_dir: ${prepare_dataset.dataset_dir}
     train_ratio: 0.7
@@ -43,6 +43,7 @@ training:
     image_size: 256
   model:
     loss: 'mIoU' # доступные значения: ['Lovasz', 'Focal', 'mIoU', 'CrossEntropy']
+    metric: 'mcc' # доступные метрики: ['miou', 'fg_iou']
     cuda: true
     num_classes: 2
     opt:

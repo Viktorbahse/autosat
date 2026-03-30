@@ -1,7 +1,5 @@
 """Metrics for segmentation."""
 
-import math
-
 import numpy as np
 import torch
 
@@ -11,7 +9,7 @@ NAN = float("nan")
 class Metrics:
     """Tracking mean metrics"""
 
-    def __init__(self, labels):
+    def __init__(self, labels, metric):
         """Creates an new `Metrics` instance.
 
         Args:
@@ -20,7 +18,7 @@ class Metrics:
 
         self.labels = labels
         self.num_classes = len(labels)
-
+        self.metric = metric
         # Initialize confusion matrix
         self.confusion_matrix = torch.zeros((self.num_classes, self.num_classes), dtype=torch.long)
 
@@ -105,29 +103,34 @@ class Metrics:
 
     def get_mcc(self):  # noqa: WPS210
         """Retrieves the Matthew's Coefficient Correlation score.
-
         Returns:
           The Matthew's Coefficient Correlation score for all observations seen so far.
         """
-        # For multi-class, MCC is complex; here we implement binary MCC
-        if self.num_classes != 2:
-            return NAN
+        C = self.confusion_matrix.float()
+        total = C.sum()
+        row_sums = C.sum(dim=1)
+        col_sums = C.sum(dim=0)
 
-        # Extract confusion matrix elements for binary case
-        tn = self.confusion_matrix[0, 0].item()
-        fp = self.confusion_matrix[0, 1].item()
-        fn = self.confusion_matrix[1, 0].item()
-        tp = self.confusion_matrix[1, 1].item()
+        num = torch.sum(C.diag() * total - row_sums * col_sums)
 
-        num = tp * tn - fp * fn
-        den = math.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
-        mcc = float("nan") if den == 0 else num / den
+        term1 = total**2 - torch.sum(row_sums**2)
+        term2 = total**2 - torch.sum(col_sums**2)
+
+        den = torch.sqrt(term1 * term2)
+
+        mcc = NAN if den == 0 else num / den
 
         return mcc
 
     def compute(self):
-        """Compute the primary metric (mIoU) for the current state."""
-        return self.get_miou()
+        """Compute the metric for the current state."""
+        if self.metric == "miou":
+            return self.get_miou()
+        elif self.metric == "mcc":
+            return self.get_mcc()
+        elif self.metric == "fg_iou":
+            return self.get_fg_iou()
+        return NAN
 
     def reset(self):
         """Reset the metrics."""
