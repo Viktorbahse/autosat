@@ -9,10 +9,10 @@ prepare_satellite_data:
   tile_size: 256 # размер тайла в пикселях
   dataset_dir: data/dataset
   map_box: ## Координаты, ограничивающие выбранную область
-  - 37.37411 # min_lon
-  - 55.63187 # min_lat
-  - 37.60483 # max_lon
-  - 55.74006 # max_lat
+  - 36.90000 # min_lon
+  - 55.38000 # min_lat
+  - 38.00000 # max_lon
+  - 56.00000 # max_lat
   osm: data/map.osm.pbf
   sources: ## TMS сервисы
     google: "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
@@ -33,15 +33,15 @@ training:
   random_seed: 42
   checkpoint_dir: data/checkpoint
   classes: ${prepare_satellite_data.classes}
-  num_epoch: 10
+  num_epoch: 25
   loader:
     dataset_dir: ${prepare_dataset.dataset_dir}
     train_ratio: 0.7
     val_ratio: 0.15
     test_ratio: 0.15
-    batch_size: 1
+    batch_size: 32
     num_workers: 4
-    image_size: 256
+    image_size: 512
   model:
     loss: 'mIoU' # доступные значения: ['Lovasz', 'Focal', 'mIoU', 'CrossEntropy']
     metric: 'mcc' # доступные метрики: ['miou', 'fg_iou', 'mcc']

@@ -39,10 +39,10 @@ stages:
           tile_size: 256
           dataset_dir: data/dataset
           map_box:
-          - 37.37411
-          - 55.63187
-          - 37.60483
-          - 55.74006
+          - 36.9
+          - 55.38
+          - 38.0
+          - 56.0
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -53,9 +53,9 @@ stages:
     outs:
     - path: data/satellite
       hash: md5
-      md5: 94bd1cec56002facfef704405af5ff7d.dir
-      size: 368034868
-      nfiles: 280
+      md5: daaf3ec14030c7ccb5e61d6791e1b313.dir
+      size: 9841615899
+      nfiles: 8006
   prepare_dataset:
     cmd: python scripts/prepare_dataset.py
     params:
@@ -73,10 +73,10 @@ stages:
           tile_size: 256
           dataset_dir: data/dataset
           map_box:
-          - 37.37411
-          - 55.63187
-          - 37.60483
-          - 55.74006
+          - 36.9
+          - 55.38
+          - 38.0
+          - 56.0
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -87,32 +87,32 @@ stages:
     outs:
     - path: data/dataset
       hash: md5
-      md5: 2f2dfb679303e4ff25cbc1d167a93bab.dir
-      size: 5147618112
-      nfiles: 56
+      md5: f2b584c8339a13f01aebb6eb36607627.dir
+      size: 147074803200
+      nfiles: 1600
   training:
     cmd: python src/train.py
     deps:
     - path: data/dataset
       hash: md5
-      md5: 2f2dfb679303e4ff25cbc1d167a93bab.dir
-      size: 5147618112
-      nfiles: 56
+      md5: f2b584c8339a13f01aebb6eb36607627.dir
+      size: 147074803200
+      nfiles: 1600
     params:
       params.yaml:
         training:
           random_seed: 42
           checkpoint_dir: data/checkpoint
           classes: ${prepare_satellite_data.classes}
-          num_epoch: 10
+          num_epoch: 25
           loader:
             dataset_dir: ${prepare_dataset.dataset_dir}
             train_ratio: 0.7
             val_ratio: 0.15
             test_ratio: 0.15
-            batch_size: 1
+            batch_size: 32
             num_workers: 4
-            image_size: 256
+            image_size: 512
           model:
             loss: mIoU
             metric: mcc

@@ -87,9 +87,12 @@ def main(cfg: DictConfig):
     for f in files:
         parent = f.parent
         grand = parent.parent
-        x = int(grand.name)
-        y = int(parent.name)
-        tiles_dict[(x, y)].append(f)
+        try:
+            x = int(grand.name)
+            y = int(parent.name)
+            tiles_dict[(x, y)].append(f)
+        except:
+            continue
 
     items = list(tiles_dict.items())
     total = len(items)
@@ -107,7 +110,7 @@ def main(cfg: DictConfig):
             futures.append(
                 executor.submit(process_layer, item, cfg, dataset_dir, idx, total)
             )
-            logger.info(f"Process item: {idx} / {total}")
+            logger.info(f"Process item: {idx+1} / {total}")
 
     num_processed_items = sum([f.result() for f in futures])
 
