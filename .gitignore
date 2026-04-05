@@ -4,6 +4,7 @@ __pycache__
 .mypy_cache
 .DS_Store
 
+.idea/
 .venv/
 .ipynb_checkpoints/
 scripts/.ipynb_checkpoints/

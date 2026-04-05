@@ -3,25 +3,25 @@ stages:
   download_and_extract_osm:
     cmd: wget -c --limit-rate=10M -P data/
       "https://download.geofabrik.de/russia/central-fed-district-latest.osm.pbf"
-      && osmium extract --bbox "37.37411,55.63187,37.60483,55.74006"
+      && osmium extract --bbox "37.56,55.715,38.0,56.35"
       data/central-fed-district-latest.osm.pbf --output data/map.osm.pbf
     params:
       params.yaml:
         prepare_satellite_data.map_box:
-        - 37.37411
-        - 55.63187
-        - 37.60483
-        - 55.74006
+        - 37.56
+        - 55.715
+        - 38.0
+        - 56.35
         prepare_satellite_data.osm: data/map.osm.pbf
     outs:
     - path: data/central-fed-district-latest.osm.pbf
       hash: md5
-      md5: ad9b04a8e07e904fa232d1f48ebaaee2
-      size: 858465154
+      md5: 1f96352eda6d631d537e232c5101f168
+      size: 858879847
     - path: data/map.osm.pbf
       hash: md5
-      md5: 67e4196db5425da2b05fc8c446dbb28b
-      size: 9654251
+      md5: d09b00b6a367c5d0929101d6beb94fd3
+      size: 45087702
   prepare_satellite_data:
     cmd: python scripts/prepare_satellite_data.py
     params:
@@ -33,16 +33,16 @@ stages:
           - - road
             - 204
           data_dir: data/satellite
-          max_workers: 4
+          max_workers: 12
           zoom: 17
-          num_tiles: 10
+          num_tiles: 30
           tile_size: 256
           dataset_dir: data/dataset
           map_box:
-          - 36.9
-          - 55.38
+          - 37.56
+          - 55.715
           - 38.0
-          - 56.0
+          - 56.35
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -53,9 +53,9 @@ stages:
     outs:
     - path: data/satellite
       hash: md5
-      md5: daaf3ec14030c7ccb5e61d6791e1b313.dir
-      size: 9841615899
-      nfiles: 8006
+      md5: a4a9f14e0dbeb40f58e0412ca8c66e75.dir
+      size: 3509184901
+      nfiles: 325
   prepare_dataset:
     cmd: python scripts/prepare_dataset.py
     params:
