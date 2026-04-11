@@ -53,7 +53,7 @@ def process_layer(item: tuple[tuple[int, int], list[Path]], cfg: DictConfig, dat
         image = read_image(file_name)
 
         if 3 == len(image.shape):
-            data[..., index: index + 3] = image
+            data[0:image.shape[0], 0:image.shape[1], index: index + 3] = image
             index += 3
         else:
             data[..., -1] = image
