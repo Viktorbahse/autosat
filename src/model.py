@@ -111,6 +111,8 @@ class Model(LightningModule):  # noqa: WPS230 WPS214
         self.val_metric.add(logits, targets)
 
     def _init_criterion(self):
+        if self.weight is None:
+            self.weight = [1 for _ in range(int(self.cfg.num_classes))]
         if self.cfg.loss == "CrossEntropy":
             self.criterion = CrossEntropyLoss2d(weight=torch.Tensor(self.weight))
         elif self.cfg.loss == "mIoU":

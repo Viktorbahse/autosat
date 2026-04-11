@@ -5,14 +5,14 @@ prepare_satellite_data:
   data_dir: data/satellite
   max_workers: 4
   zoom: 17 # zoom 17 соответствует примерно 1 px / m
-  num_tiles: 10 # число тайлов по ширине и высоте изображения
+  num_tiles: 5 # число тайлов по ширине и высоте изображения
   tile_size: 256 # размер тайла в пикселях
   dataset_dir: data/dataset
   map_box: ## Координаты, ограничивающие выбранную область
-  - 37.44186 # min_lon
-  - 55.52806 # min_lat
-  - 37.57599 # max_lon
-  - 55.58824 # max_lat
+  - 37.51076 # min_lon
+  - 55.65512 # min_lat
+  - 37.58114 # max_lon
+  - 55.69133 # max_lat
   osm: data/map.osm.pbf
   sources: ## TMS сервисы
     google: "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
@@ -31,9 +31,9 @@ prepare_dataset:
 
 training:
   random_seed: 42
-  checkpoint_dir: data/checkpoint
+  logs_dir: data/logs
   classes: ${prepare_satellite_data.classes}
-  num_epoch: 1
+  num_epoch: 5
   loader:
     dataset_dir: ${prepare_dataset.dataset_dir}
     train_ratio: 0.7
@@ -55,3 +55,11 @@ training:
     sch:
       num_epoch: ${training.num_epoch}
       eta_min: 1e-6
+
+eval:
+  classes: ${prepare_satellite_data.classes}
+  checkpoint_path: ${training.logs_dir}/DvcLiveLogger/model_training/checkpoints/epoch=4-step=1750.ckpt
+  data_in: data/satellite/17/79198/41015/yandex.jpg
+  data_out: data/predict/
+  image_size: ${training.loader.image_size}
+  model: ${training.model}

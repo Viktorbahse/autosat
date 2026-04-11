@@ -1,7 +1,7 @@
 import rootutils
+from dvclive.lightning import DVCLiveLogger
 from lightning import Trainer
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
-from lightning.pytorch.loggers import TensorBoardLogger
 from omegaconf import DictConfig, OmegaConf
 
 rootutils.setup_root(__file__, indicator="pyproject.toml", pythonpath=True)
@@ -18,7 +18,7 @@ NUMBER_OF_PIXELS_SUFFIX = "_number_of_pixels"
 def main(cfg: DictConfig):  # noqa: WPS210
     # set_seed(cfg.random_seed)
 
-    make_dir(cfg.checkpoint_dir, delete_if_exist=True)
+    make_dir(cfg.logs_dir, delete_if_exist=False)
 
     loader = Loader(cfg.loader)
     loader.prepare_data()
@@ -32,16 +32,12 @@ def main(cfg: DictConfig):  # noqa: WPS210
         ModelCheckpoint(save_top_k=2, monitor="val/metric", mode="max", every_n_epochs=1),
     ]
 
-    # будем логировать метрики с помощью tensorboard
-    logger = TensorBoardLogger(
-        save_dir="data/logs",  # путь к логам
-        name="tensorboard",
-    )
+    logger = DVCLiveLogger(run_name="model_training", log_model=True, dir=f"{cfg.logs_dir}/dvclive")
 
     # Trainer сам выберет лучший ускоритель, если он явно не задан
     trainer = Trainer(
         max_epochs=cfg.num_epoch,
-        default_root_dir="data/logs",  # путь к checkpoints
+        default_root_dir=f"{cfg.logs_dir}",  # путь к checkpoints
         callbacks=callbacks,
         logger=logger,
     )
