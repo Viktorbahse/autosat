@@ -5,6 +5,7 @@ description = ""
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "matplotlib",
     "dvclive",
     "geojson>=3.2.0",
     "h5py>=3.15.1",
@@ -48,6 +49,7 @@ exclude = [
 [tool.flake8]
 exclude = [
     "scripts/*.py",
+    "src/loader.py",
 ]
 # Оставляем только правила WPS, так как остальное проверит Ruff
 select = "WPS"

@@ -1,3 +1,4 @@
+import math  # noqa: WPS402
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
@@ -14,13 +15,80 @@ MASK_KEY = "mask"
 DATA_KEY = "data"
 
 
-class H5Dataset(Dataset):  # noqa: WPS230
+class RandomDynamicCrop(A.DualTransform):
+    def __init__(self, image_size, min_ratio=9 / 11, max_ratio=1.0, always_apply=False, p=1.0):  # noqa: WPS432 WPS404
+        super().__init__(always_apply, p)
+        self.image_size = image_size
+        self.min_ratio = min_ratio
+        self.max_ratio = max_ratio
+
+    def apply(self, img, crop_height=None, crop_width=None, **params):  # noqa: WPS110
+        if crop_height is None or crop_width is None:
+            return img
+        return A.RandomCrop(height=crop_height, width=crop_width, p=1.0)(image=img)["image"]
+
+    def get_params(self):
+        # Случайный коэффициент p от min_ratio до max_ratio
+        p = np.random.uniform(self.min_ratio, self.max_ratio)
+        crop_size = int(self.image_size * p)
+        return {"crop_height": crop_size, "crop_width": crop_size}
+
+    def get_transform_init_args_names(self):
+        return ("image_size", "min_ratio", "max_ratio")
+
+
+class H5Dataset_v1(Dataset):
     def __init__(self, files: List[Path], image_size: int, transform: Optional[Callable] = None):
         self.files = [Path(p) for p in files]
         self.transform = transform
         self.image_size = image_size
-        with h5py.File(self.files[0], "r") as f:  # noqa: WPS226
+        self.len = len(self.files)
+        self.window_size = math.ceil(math.ceil(self.image_size * 1.1) * np.sqrt(2))  # noqa: 432
+
+    def __len__(self) -> int:
+        return self.len
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:  # noqa: WPS210
+        with h5py.File(self.files[idx], "r") as f:  # noqa: 226
             h, w, c = f[DATA_KEY].shape
+            z0 = np.random.randint(0, (c - 4) // 3 + 1)
+            z1 = z0 + 3
+            y0 = np.random.randint(0, h - self.window_size)
+            y1 = y0 + self.window_size
+
+            x0 = np.random.randint(0, w - self.window_size)
+            x1 = x0 + self.window_size
+
+            img = f[DATA_KEY][y0:y1, x0:x1, z0:z1].astype(np.float32)
+            mask = f[DATA_KEY][y0:y1, x0:x1, -1].astype(np.uint8)
+            i = 0
+            for k, v in f.attrs.items():
+                if k not in ["x", "y", "zoom"] and NUMBER_OF_PIXELS_SUFFIX not in k:
+                    mask[mask == v] = i
+                    i += 1
+
+        mask = mask.astype(np.int64)
+
+        if self.transform:
+            augmented = self.transform(image=img, mask=mask)
+            key = "image"
+            img = augmented[key]
+            mask = augmented[MASK_KEY]
+        else:
+            img = torch.from_numpy(img).permute(2, 0, 1).contiguous()
+            img = img / float(255)  # noqa: WPS432
+            mask = torch.from_numpy(mask).long()
+
+        return img, mask
+
+
+class H5Dataset_v0(Dataset):  # noqa: WPS230
+    def __init__(self, files: List[Path], image_size: int, transform: Optional[Callable] = None):
+        self.files = [Path(p) for p in files]
+        self.transform = transform
+        self.image_size = image_size
+        with h5py.File(self.files[0], "r") as f:
+            h, w, _ = f[DATA_KEY].shape
         self.tiles_y = h // self.image_size
         self.tiles_x = w // self.image_size
         self.images_in_file = self.tiles_y * self.tiles_x
@@ -136,30 +204,59 @@ class Loader(LightningDataModule):  # noqa: WPS230
 
     def setup(self, stage: Optional[str] = None):
         if stage == "fit" or stage is None:
-            train_tf = A.Compose(
-                [
-                    A.RandomCrop(self.cfg.image_size, self.cfg.image_size),
-                    A.RandomRotate90(p=1.0),
-                    A.HorizontalFlip(p=0.5),
-                    A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-                    ToTensorV2(),
-                ],
-                additional_targets={MASK_KEY: MASK_KEY},
-            )
-
-            test_tf = A.Compose(
-                [
-                    A.RandomCrop(self.cfg.image_size, self.cfg.image_size),
-                    A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-                    ToTensorV2(),
-                ],
-                additional_targets={MASK_KEY: MASK_KEY},
-            )
-
             self.prepare_data()
-            self.train_dataset = H5Dataset(self.train_files, image_size=self.cfg.image_size, transform=train_tf)
-            self.val_dataset = H5Dataset(self.val_files, image_size=self.cfg.image_size, transform=train_tf)
-            self.test_dataset = H5Dataset(self.test_files, image_size=self.cfg.image_size, transform=test_tf)
+            if self.cfg.version == 0:
+                train_tf = A.Compose(
+                    [
+                        A.RandomCrop(self.cfg.image_size, self.cfg.image_size),
+                        A.RandomRotate90(p=1.0),
+                        A.HorizontalFlip(p=0.5),
+                        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                        ToTensorV2(),
+                    ],
+                    additional_targets={MASK_KEY: MASK_KEY},
+                )
+
+                test_tf = A.Compose(
+                    [
+                        A.RandomCrop(self.cfg.image_size, self.cfg.image_size),
+                        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                        ToTensorV2(),
+                    ],
+                    additional_targets={MASK_KEY: MASK_KEY},
+                )
+                self.train_dataset = H5Dataset_v0(self.train_files, image_size=self.cfg.image_size, transform=train_tf)
+                self.val_dataset = H5Dataset_v0(self.val_files, image_size=self.cfg.image_size, transform=train_tf)
+                self.test_dataset = H5Dataset_v0(self.test_files, image_size=self.cfg.image_size, transform=test_tf)
+            elif self.cfg.version == 1:
+                train_tf = A.Compose(
+                    [
+                        A.Rotate(limit=180, p=1.0),  # noqa: 432
+                        A.CenterCrop(
+                            height=math.ceil(self.cfg.image_size * 1.1),  # noqa: 432
+                            width=math.ceil(self.cfg.image_size * 1.1),  # noqa: 432
+                            p=1.0,
+                        ),
+                        RandomDynamicCrop(image_size=self.cfg.image_size, min_ratio=9 / 11, max_ratio=1.0, p=1.0),  # noqa: 432
+                        A.Resize(height=self.cfg.image_size, width=self.cfg.image_size, p=1.0),
+                        A.HorizontalFlip(p=0.5),
+                        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                        ToTensorV2(),
+                    ],
+                    additional_targets={MASK_KEY: MASK_KEY},
+                )
+
+                test_tf = A.Compose(
+                    [
+                        A.RandomCrop(self.cfg.image_size, self.cfg.image_size),
+                        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                        ToTensorV2(),
+                    ],
+                    additional_targets={MASK_KEY: MASK_KEY},
+                )
+                self.train_dataset = H5Dataset_v1(self.train_files, image_size=self.cfg.image_size, transform=train_tf)
+                self.val_dataset = H5Dataset_v1(self.val_files, image_size=self.cfg.image_size, transform=train_tf)
+                self.test_dataset = H5Dataset_v1(self.test_files, image_size=self.cfg.image_size, transform=test_tf)
 
     def train_dataloader(self):
         return DataLoader(

@@ -1,18 +1,18 @@
 prepare_satellite_data:
   classes: # Классы для сегментации
   - [building, 255] # [имя класса, интенсивность маски]
-  - [road, 204]
+  - [road, 153]
   data_dir: data/satellite
   max_workers: 4
-  zoom: 17 # zoom 17 соответствует примерно 1 px / m
-  num_tiles: 5 # число тайлов по ширине и высоте изображения
+  zoom: 19 # zoom 17 соответствует примерно 1 px / m
+  num_tiles: 10 # число тайлов по ширине и высоте изображения
   tile_size: 256 # размер тайла в пикселях
   dataset_dir: data/dataset
   map_box: ## Координаты, ограничивающие выбранную область
-  - 37.51076 # min_lon
-  - 55.65512 # min_lat
-  - 37.58114 # max_lon
-  - 55.69133 # max_lat
+  - 37.57131 # min_lon
+  - 55.70470 # min_lat
+  - 37.60440 # max_lon
+  - 55.72467 # max_lat
   osm: data/map.osm.pbf
   sources: ## TMS сервисы
     google: "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
@@ -21,7 +21,7 @@ prepare_satellite_data:
     yandex: "https://sat04.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}"
 
 prepare_dataset:
-  satellite_dir: data/satellite/17
+  satellite_dir: data/satellite/19
   dataset_dir: data/dataset
   max_workers: 4
   num_tiles: ${prepare_satellite_data.num_tiles}
@@ -33,12 +33,13 @@ training:
   random_seed: 42
   logs_dir: data/logs
   classes: ${prepare_satellite_data.classes}
-  num_epoch: 5
+  num_epoch: 300
   loader:
+    version: 1 #доступные версии [0, 1]
     dataset_dir: ${prepare_dataset.dataset_dir}
-    train_ratio: 0.7
-    val_ratio: 0.15
-    test_ratio: 0.15
+    train_ratio: 0.5
+    val_ratio: 0.25
+    test_ratio: 0.25
     batch_size: 1
     num_workers: 4
     image_size: 256
@@ -58,8 +59,8 @@ training:
 
 eval:
   classes: ${prepare_satellite_data.classes}
-  checkpoint_path: ${training.logs_dir}/DvcLiveLogger/model_training/checkpoints/epoch=4-step=1750.ckpt
-  data_in: data/satellite/17/79198/41015/yandex.jpg
+  checkpoint_path: ${training.logs_dir}/DvcLiveLogger/model_training/checkpoints/epoch=227-step=2280.ckpt
+  data_in: data/satellite/19/316861/163974/yandex.jpg
   data_out: data/predict/
   image_size: ${training.loader.image_size}
   model: ${training.model}

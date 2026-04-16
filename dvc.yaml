@@ -46,5 +46,5 @@ plots:
     x: step
 artifacts:
   best:
-    path: data/logs/dvclive/artifacts/epoch=3-step=1400.ckpt
+    path: data/logs/dvclive/artifacts/epoch=218-step=2190.ckpt
     type: model

@@ -32,7 +32,7 @@ def make_mask(shape, logits, image_size, num_classes):
     t = 0
     while i + image_size <= shape[0]:
         while j + image_size <= shape[1]:
-            mask[0:-1, i : i + image_size, j : j + image_size] += logits[t][0]  # noqa: WPS221
+            mask[..., i : i + image_size, j : j + image_size] += logits[t][0]  # noqa: WPS221
             t += 1
             j += image_size // 4 * 3
         j = 0
@@ -81,6 +81,7 @@ def main(cfg: DictConfig):  # noqa: WPS210
     idx = 1
     for obj_class in cfg.classes:
         out[out == idx] = obj_class[1]
+        idx += 1
     overlay = cfg.image_size // 4
     out = out[overlay : overlay + h, overlay : overlay + w]
     mask_image = Image.fromarray(out)
