@@ -9,36 +9,7 @@ from pathlib import Path
 import torch
 
 from src.model import Model
-from src.utils import make_dir
-
-
-def image_cutting(image, tile_size):
-    tiles = []
-    i = 0
-    j = 0
-    while i + tile_size <= image.shape[0]:
-        while j + tile_size <= image.shape[1]:
-            tiles.append(image[i : i + tile_size, j : j + tile_size, 0:3])
-            j += tile_size // 4 * 3
-        j = 0
-        i += tile_size // 4 * 3
-    return np.array(tiles, dtype=np.float32) / 255.0  # noqa: WPS 432
-
-
-def make_mask(shape, logits, image_size, num_classes):
-    mask = np.zeros((num_classes, shape[0], shape[1]), dtype=np.float32)
-    i = 0
-    j = 0
-    t = 0
-    while i + image_size <= shape[0]:
-        while j + image_size <= shape[1]:
-            mask[..., i : i + image_size, j : j + image_size] += logits[t][0]  # noqa: WPS221
-            t += 1
-            j += image_size // 4 * 3
-        j = 0
-        i += image_size // 4 * 3
-
-    return mask.argmax(axis=0).astype(np.uint8)
+from src.utils import image_cutting, make_dir, make_mask
 
 
 def main(cfg: DictConfig):  # noqa: WPS210

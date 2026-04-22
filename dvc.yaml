@@ -29,8 +29,6 @@ stages:
 
   training:
     cmd: python src/train.py
-    deps:
-    - ${prepare_dataset.dataset_dir}
     params:
     - training
 metrics:
@@ -46,5 +44,5 @@ plots:
     x: step
 artifacts:
   best:
-    path: data/logs/dvclive/artifacts/epoch=218-step=2190.ckpt
+    path: data/logs/dvclive/artifacts/epoch=1-step=120-v1.ckpt
     type: model

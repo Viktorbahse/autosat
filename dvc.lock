@@ -3,25 +3,25 @@ stages:
   download_and_extract_osm:
     cmd: wget -c --limit-rate=10M -P data/
       "https://download.geofabrik.de/russia/central-fed-district-latest.osm.pbf"
-      && osmium extract --bbox "37.57131,55.7047,37.6044,55.72467"
+      && osmium extract --bbox "37.35901,55.55971,37.83417,55.89072"
       data/central-fed-district-latest.osm.pbf --output data/map.osm.pbf
     params:
       params.yaml:
         prepare_satellite_data.map_box:
-        - 37.57131
-        - 55.7047
-        - 37.6044
-        - 55.72467
+        - 37.35901
+        - 55.55971
+        - 37.83417
+        - 55.89072
         prepare_satellite_data.osm: data/map.osm.pbf
     outs:
     - path: data/central-fed-district-latest.osm.pbf
       hash: md5
-      md5: 7fbe4385b439f4b95be23297ef586162
-      size: 859696843
+      md5: 3b9c97248fd5024ef93dec4e55977c7b
+      size: 860250819
     - path: data/map.osm.pbf
       hash: md5
-      md5: 942804d377e074705fd4f347ed539608
-      size: 523828
+      md5: 5d13ee5a9f2691634a57e7ed940a2b05
+      size: 63055829
   prepare_satellite_data:
     cmd: python scripts/prepare_satellite_data.py
     params:
@@ -39,10 +39,10 @@ stages:
           tile_size: 256
           dataset_dir: data/dataset
           map_box:
-          - 37.57131
-          - 55.7047
-          - 37.6044
-          - 55.72467
+          - 37.51093
+          - 55.66074
+          - 37.59333
+          - 55.69994
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -53,9 +53,9 @@ stages:
     outs:
     - path: data/satellite
       hash: md5
-      md5: d1ebd3be3b4791812dbd6c527724d357.dir
-      size: 82709749
-      nfiles: 100
+      md5: 3f798ba43bb94554287437d9b6e98f62.dir
+      size: 495326333
+      nfiles: 600
   prepare_dataset:
     cmd: python scripts/prepare_dataset.py
     params:
@@ -73,10 +73,10 @@ stages:
           tile_size: 256
           dataset_dir: data/dataset
           map_box:
-          - 37.57131
-          - 55.7047
-          - 37.6044
-          - 55.72467
+          - 37.51093
+          - 55.66074
+          - 37.59333
+          - 55.69994
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -87,24 +87,18 @@ stages:
     outs:
     - path: data/dataset
       hash: md5
-      md5: 414dea7d4d3ae289488784cd54473ab3.dir
-      size: 1838435040
-      nfiles: 20
+      md5: 80089f2c31be71c94394c38adf825678.dir
+      size: 11030610240
+      nfiles: 120
   training:
     cmd: python src/train.py
-    deps:
-    - path: data/dataset
-      hash: md5
-      md5: 414dea7d4d3ae289488784cd54473ab3.dir
-      size: 1838435040
-      nfiles: 20
     params:
       params.yaml:
         training:
           random_seed: 42
           logs_dir: data/logs
           classes: ${prepare_satellite_data.classes}
-          num_epoch: 300
+          num_epoch: 3
           loader:
             version: 1
             dataset_dir: ${prepare_dataset.dataset_dir}
@@ -129,3 +123,4 @@ stages:
             sch:
               num_epoch: ${training.num_epoch}
               eta_min: 1e-06
+          predict_on_test_data: true

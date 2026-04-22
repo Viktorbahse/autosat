@@ -9,10 +9,10 @@ prepare_satellite_data:
   tile_size: 256 # размер тайла в пикселях
   dataset_dir: data/dataset
   map_box: ## Координаты, ограничивающие выбранную область
-  - 37.57131 # min_lon
-  - 55.70470 # min_lat
-  - 37.60440 # max_lon
-  - 55.72467 # max_lat
+  - 37.35901 # min_lon
+  - 55.55971 # min_lat
+  - 37.83417 # max_lon
+  - 55.89072 # max_lat
   osm: data/map.osm.pbf
   sources: ## TMS сервисы
     google: "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
@@ -23,7 +23,7 @@ prepare_satellite_data:
 prepare_dataset:
   satellite_dir: data/satellite/19
   dataset_dir: data/dataset
-  max_workers: 4
+  max_workers: 16
   num_tiles: ${prepare_satellite_data.num_tiles}
   tile_size: ${prepare_satellite_data.tile_size}
   classes: ${prepare_satellite_data.classes}
@@ -33,16 +33,16 @@ training:
   random_seed: 42
   logs_dir: data/logs
   classes: ${prepare_satellite_data.classes}
-  num_epoch: 300
+  num_epoch: 2000
   loader:
     version: 1 #доступные версии [0, 1]
     dataset_dir: ${prepare_dataset.dataset_dir}
     train_ratio: 0.5
     val_ratio: 0.25
     test_ratio: 0.25
-    batch_size: 1
-    num_workers: 4
-    image_size: 256
+    batch_size: 128
+    num_workers: 16
+    image_size: 512
   model:
     loss: 'mIoU' # доступные значения: ['Lovasz', 'Focal', 'mIoU', 'CrossEntropy']
     metric: 'mcc' # доступные метрики: ['miou', 'fg_iou', 'mcc']
@@ -56,6 +56,7 @@ training:
     sch:
       num_epoch: ${training.num_epoch}
       eta_min: 1e-6
+  predict_on_test_data: true
 
 eval:
   classes: ${prepare_satellite_data.classes}

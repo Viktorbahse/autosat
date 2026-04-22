@@ -165,6 +165,9 @@ class Loader(LightningDataModule):  # noqa: WPS230
         self.val_files = files[n_train : n_train + n_val]
         self.test_files = files[n_train + n_val :]
 
+    def get_test_files(self):
+        return self.test_files
+
     def calculate_weights(self):  # noqa: WPS210
         classes = []
         classes_pixels_values = []
