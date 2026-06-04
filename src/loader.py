@@ -1,3 +1,4 @@
+import json
 import math  # noqa: WPS402
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
@@ -51,15 +52,13 @@ class H5Dataset_v1(Dataset):
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:  # noqa: WPS210
         with h5py.File(self.files[idx], "r") as f:  # noqa: 226
             h, w, c = f[DATA_KEY].shape
-            z0 = np.random.randint(0, (c - 4) // 3 + 1)
-            z1 = z0 + 3
             y0 = np.random.randint(0, h - self.window_size)
             y1 = y0 + self.window_size
 
             x0 = np.random.randint(0, w - self.window_size)
             x1 = x0 + self.window_size
 
-            img = f[DATA_KEY][y0:y1, x0:x1, z0:z1].astype(np.float32)
+            img = f[DATA_KEY][y0:y1, x0:x1, 0:-1].astype(np.float32)
             mask = f[DATA_KEY][y0:y1, x0:x1, -1].astype(np.uint8)
             i = 0
             for k, v in f.attrs.items():
@@ -203,67 +202,51 @@ class Loader(LightningDataModule):  # noqa: WPS230
     def prepare_data(self):
         files = self.get_files()
         self.split(files)
+        split_info = {
+            "train_files": [str(p) for p in self.train_files],
+            "val_files": [str(p) for p in self.val_files],
+            "test_files": [str(p) for p in self.test_files],
+        }
+
+        with open(self.cfg.keep_split, "w") as f:
+            json.dump(split_info, f, indent=4)
         self.calculate_weights()
 
     def setup(self, stage: Optional[str] = None):
         if stage == "fit" or stage is None:
             self.prepare_data()
-            if self.cfg.version == 0:
-                train_tf = A.Compose(
-                    [
-                        A.RandomCrop(self.cfg.image_size, self.cfg.image_size),
-                        A.RandomRotate90(p=1.0),
-                        A.HorizontalFlip(p=0.5),
-                        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-                        ToTensorV2(),
-                    ],
-                    additional_targets={MASK_KEY: MASK_KEY},
-                )
+            train_tf = A.Compose(
+                [
+                    A.Rotate(limit=180, p=1.0),  # noqa: 432
+                    A.CenterCrop(
+                        height=math.ceil(self.cfg.image_size * 1.1),  # noqa: 432
+                        width=math.ceil(self.cfg.image_size * 1.1),  # noqa: 432
+                        p=1.0,
+                    ),
+                    RandomDynamicCrop(image_size=self.cfg.image_size, min_ratio=9 / 11, max_ratio=1.0, p=1.0),  # noqa: 432
+                    A.Resize(height=self.cfg.image_size, width=self.cfg.image_size, p=1.0),
+                    A.HorizontalFlip(p=0.5),
+                    A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                    ToTensorV2(),
+                ],
+                additional_targets={MASK_KEY: MASK_KEY},
+            )
 
-                test_tf = A.Compose(
-                    [
-                        A.RandomCrop(self.cfg.image_size, self.cfg.image_size),
-                        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-                        ToTensorV2(),
-                    ],
-                    additional_targets={MASK_KEY: MASK_KEY},
-                )
-                self.train_dataset = H5Dataset_v0(self.train_files, image_size=self.cfg.image_size, transform=train_tf)
-                self.val_dataset = H5Dataset_v0(self.val_files, image_size=self.cfg.image_size, transform=train_tf)
-                self.test_dataset = H5Dataset_v0(self.test_files, image_size=self.cfg.image_size, transform=test_tf)
-            elif self.cfg.version == 1:
-                train_tf = A.Compose(
-                    [
-                        A.Rotate(limit=180, p=1.0),  # noqa: 432
-                        A.CenterCrop(
-                            height=math.ceil(self.cfg.image_size * 1.1),  # noqa: 432
-                            width=math.ceil(self.cfg.image_size * 1.1),  # noqa: 432
-                            p=1.0,
-                        ),
-                        RandomDynamicCrop(image_size=self.cfg.image_size, min_ratio=9 / 11, max_ratio=1.0, p=1.0),  # noqa: 432
-                        A.Resize(height=self.cfg.image_size, width=self.cfg.image_size, p=1.0),
-                        A.HorizontalFlip(p=0.5),
-                        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-                        ToTensorV2(),
-                    ],
-                    additional_targets={MASK_KEY: MASK_KEY},
-                )
-
-                test_tf = A.Compose(
-                    [
-                        A.RandomCrop(self.cfg.image_size, self.cfg.image_size),
-                        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-                        ToTensorV2(),
-                    ],
-                    additional_targets={MASK_KEY: MASK_KEY},
-                )
-                self.train_dataset = H5Dataset_v1(self.train_files, image_size=self.cfg.image_size, transform=train_tf)
-                self.val_dataset = H5Dataset_v1(self.val_files, image_size=self.cfg.image_size, transform=train_tf)
-                self.test_dataset = H5Dataset_v1(self.test_files, image_size=self.cfg.image_size, transform=test_tf)
+            val_test_tf = A.Compose(
+                [
+                    A.RandomCrop(self.cfg.image_size, self.cfg.image_size),
+                    A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                    ToTensorV2(),
+                ],
+                additional_targets={MASK_KEY: MASK_KEY},
+            )
+            self.train_dataset = H5Dataset_v1(self.train_files, image_size=self.cfg.image_size, transform=train_tf)
+            self.val_dataset = H5Dataset_v0(self.val_files, image_size=self.cfg.image_size, transform=val_test_tf)
+            self.test_dataset = H5Dataset_v0(self.test_files, image_size=self.cfg.image_size, transform=val_test_tf)
 
     def train_dataloader(self):
         return DataLoader(
-            self.train_dataset, batch_size=self.cfg.batch_size, num_workers=self.cfg.num_workers, drop_last=True
+            self.train_dataset, batch_size=self.cfg.batch_size // 4, num_workers=self.cfg.num_workers, drop_last=True
         )
 
     def val_dataloader(self):

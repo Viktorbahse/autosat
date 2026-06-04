@@ -9,10 +9,10 @@ prepare_satellite_data:
   tile_size: 256 # размер тайла в пикселях
   dataset_dir: data/dataset
   map_box: ## Координаты, ограничивающие выбранную область
-  - 37.35901 # min_lon
-  - 55.55971 # min_lat
-  - 37.83417 # max_lon
-  - 55.89072 # max_lat
+  - 37.53891 # min_lon
+  - 55.71241 # min_lat
+  - 37.71109 # max_lon
+  - 55.78256 # max_lat
   osm: data/map.osm.pbf
   sources: ## TMS сервисы
     google: "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
@@ -21,9 +21,9 @@ prepare_satellite_data:
     yandex: "https://sat04.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}"
 
 prepare_dataset:
-  satellite_dir: data/satellite/19
-  dataset_dir: data/dataset
-  max_workers: 16
+  satellite_dir: ${prepare_satellite_data.data_dir}/${prepare_satellite_data.zoom}
+  dataset_dir: ${prepare_satellite_data.dataset_dir}
+  max_workers: 4
   num_tiles: ${prepare_satellite_data.num_tiles}
   tile_size: ${prepare_satellite_data.tile_size}
   classes: ${prepare_satellite_data.classes}
@@ -33,35 +33,35 @@ training:
   random_seed: 42
   logs_dir: data/logs
   classes: ${prepare_satellite_data.classes}
-  num_epoch: 2000
+  num_epoch: 1
   loader:
-    version: 1 #доступные версии [0, 1]
+    version: 1
     dataset_dir: ${prepare_dataset.dataset_dir}
-    train_ratio: 0.5
-    val_ratio: 0.25
-    test_ratio: 0.25
-    batch_size: 128
-    num_workers: 16
-    image_size: 512
+    train_ratio: 0.8
+    val_ratio: 0.1
+    test_ratio: 0.1
+    keep_split: "data/dataset/data_split_flags.json"
+    batch_size: 1
+    num_workers: 4
+    image_size: 256
   model:
     loss: 'mIoU' # доступные значения: ['Lovasz', 'Focal', 'mIoU', 'CrossEntropy']
-    metric: 'mcc' # доступные метрики: ['miou', 'fg_iou', 'mcc']
+    metric: 'miou' # доступные метрики: ['miou', 'fg_iou', 'mcc']
     cuda: true
     num_classes: 3
     opt:
-      lr: 0.001
+      lr: 0.0001
       betas: [0.9, 0.999]
       eps: 1e-08
-      weight_decay: 0.01
+      weight_decay: 0.0001
     sch:
       num_epoch: ${training.num_epoch}
       eta_min: 1e-6
-  predict_on_test_data: true
-
 eval:
-  classes: ${prepare_satellite_data.classes}
-  checkpoint_path: ${training.logs_dir}/DvcLiveLogger/model_training/checkpoints/epoch=227-step=2280.ckpt
-  data_in: data/satellite/19/316861/163974/yandex.jpg
+  batch_size: 2
   data_out: data/predict/
+  classes: ${prepare_satellite_data.classes}
+  data_in: ${training.loader.keep_split}
+  checkpoint_path: ${training.logs_dir}/DvcLiveLogger/model_training/checkpoints/
   image_size: ${training.loader.image_size}
   model: ${training.model}
