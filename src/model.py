@@ -95,18 +95,10 @@ class Model(LightningModule):  # noqa: WPS230 WPS214
         images, targets = batch
         targets = targets.long()
 
-        split_images = torch.split(images, 3, dim=1)
-
-        all_images = torch.cat(split_images, dim=0)
-        targets_repeated = targets.repeat_interleave(4, dim=0)
-
-        shuffle_idx = torch.randperm(len(all_images))
-        all_images_shuffled = all_images[shuffle_idx]
-        targets_shuffled = targets_repeated[shuffle_idx]
-
-        logits = self(all_images_shuffled)
-        loss = self.criterion(logits, targets_shuffled)
+        logits = self(images)
+        loss = self.criterion(logits, targets)
         self.train_loss(loss)
+
         return loss
 
     def validation_step(self, batch: list[torch.Tensor], batch_idx: int) -> None:

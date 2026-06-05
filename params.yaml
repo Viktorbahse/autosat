@@ -3,16 +3,16 @@ prepare_satellite_data:
   - [building, 255] # [имя класса, интенсивность маски]
   - [road, 153]
   data_dir: data/satellite
-  max_workers: 4
+  max_workers: 8
   zoom: 19 # zoom 17 соответствует примерно 1 px / m
   num_tiles: 10 # число тайлов по ширине и высоте изображения
   tile_size: 256 # размер тайла в пикселях
   dataset_dir: data/dataset
   map_box: ## Координаты, ограничивающие выбранную область
-  - 37.53891 # min_lon
-  - 55.71241 # min_lat
-  - 37.71109 # max_lon
-  - 55.78256 # max_lat
+  - 37.52140 # min_lon
+  - 55.69713 # min_lat
+  - 37.69341 # max_lon
+  - 55.79086 # max_lat
   osm: data/map.osm.pbf
   sources: ## TMS сервисы
     google: "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
@@ -23,7 +23,7 @@ prepare_satellite_data:
 prepare_dataset:
   satellite_dir: ${prepare_satellite_data.data_dir}/${prepare_satellite_data.zoom}
   dataset_dir: ${prepare_satellite_data.dataset_dir}
-  max_workers: 4
+  max_workers: 8
   num_tiles: ${prepare_satellite_data.num_tiles}
   tile_size: ${prepare_satellite_data.tile_size}
   classes: ${prepare_satellite_data.classes}
@@ -35,14 +35,13 @@ training:
   classes: ${prepare_satellite_data.classes}
   num_epoch: 1
   loader:
-    version: 1
     dataset_dir: ${prepare_dataset.dataset_dir}
-    train_ratio: 0.8
-    val_ratio: 0.1
-    test_ratio: 0.1
+    train_ratio: 0.7
+    val_ratio: 0.15
+    test_ratio: 0.15
     keep_split: "data/dataset/data_split_flags.json"
-    batch_size: 1
-    num_workers: 4
+    batch_size: 2
+    num_workers: 8
     image_size: 256
   model:
     loss: 'mIoU' # доступные значения: ['Lovasz', 'Focal', 'mIoU', 'CrossEntropy']
@@ -50,18 +49,18 @@ training:
     cuda: true
     num_classes: 3
     opt:
-      lr: 0.0001
+      lr: 0.001
       betas: [0.9, 0.999]
       eps: 1e-08
       weight_decay: 0.0001
     sch:
       num_epoch: ${training.num_epoch}
       eta_min: 1e-6
-eval:
-  batch_size: 2
+evaluate:
   data_out: data/predict/
+  checkpoint_path: ${training.logs_dir}/DvcLiveLogger/model_training/checkpoints/
+  batch_size: 2
   classes: ${prepare_satellite_data.classes}
   data_in: ${training.loader.keep_split}
-  checkpoint_path: ${training.logs_dir}/DvcLiveLogger/model_training/checkpoints/
   image_size: ${training.loader.image_size}
   model: ${training.model}

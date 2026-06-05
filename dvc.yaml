@@ -27,7 +27,8 @@ stages:
     - scripts/prepare_dataset.py
     - ${prepare_satellite_data.data_dir}
     outs:
-    - ${prepare_satellite_data.dataset_dir}
+    - ${prepare_satellite_data.dataset_dir}:
+        cache: false
     params:
     - prepare_dataset
 
@@ -48,12 +49,12 @@ stages:
     - data/logs/dvclive/plots/metrics:
         x: step
   evaluate:
-    cmd: python src/eval.py
+    cmd: python src/evaluate.py
     deps:
-    - src/eval.py
-    - data/dataset/data_split_flags.json
-    outs:
-    - data/predict/
+    - src/evaluate.py
+    - data/logs/DvcLiveLogger/model_training/checkpoints/
+    - ${training.loader.keep_split}
+
 
 metrics:
 - data/logs/dvclive/metrics.json
@@ -62,5 +63,5 @@ plots:
     x: step
 artifacts:
   best:
-    path: data/logs/dvclive/artifacts/epoch=0-step=19.ckpt
+    path: data/logs/dvclive/artifacts/epoch=0-step=900.ckpt
     type: model
