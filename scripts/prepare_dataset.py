@@ -53,7 +53,7 @@ def process_layer(item: tuple[tuple[int, int], list[Path]], cfg: DictConfig, dat
         image = read_image(file_name)
 
         if 3 == len(image.shape):
-            data[..., index: index + 3] = image
+            data[0:image.shape[0], 0:image.shape[1], index: index + 3] = image
             index += 3
         else:
             data[..., -1] = image
@@ -67,9 +67,11 @@ def process_layer(item: tuple[tuple[int, int], list[Path]], cfg: DictConfig, dat
         h5f.attrs["zoom"] = cfg.zoom
         h5f.attrs["x"] = x
         h5f.attrs["y"] = y
-
+        h5f.attrs["background"] = 0
+        h5f.attrs["background_number_of_pixels"] = np.sum(data[..., -1] == 0)
         for class_name, pixel_val in cfg.classes:
             h5f.attrs[class_name] = pixel_val
+            h5f.attrs[class_name+'_number_of_pixels'] = np.sum(data[..., -1] == pixel_val)
 
     return True
 
@@ -85,9 +87,12 @@ def main(cfg: DictConfig):
     for f in files:
         parent = f.parent
         grand = parent.parent
-        x = int(grand.name)
-        y = int(parent.name)
-        tiles_dict[(x, y)].append(f)
+        try:
+            x = int(grand.name)
+            y = int(parent.name)
+            tiles_dict[(x, y)].append(f)
+        except:
+            continue
 
     items = list(tiles_dict.items())
     total = len(items)
@@ -105,7 +110,7 @@ def main(cfg: DictConfig):
             futures.append(
                 executor.submit(process_layer, item, cfg, dataset_dir, idx, total)
             )
-            logger.info(f"Process item: {idx} / {total}")
+            logger.info(f"Process item: {idx+1} / {total}")
 
     num_processed_items = sum([f.result() for f in futures])
 

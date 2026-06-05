@@ -5,6 +5,8 @@ description = ""
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "matplotlib",
+    "dvclive",
     "geojson>=3.2.0",
     "h5py>=3.15.1",
     "httpx>=0.28.1",
@@ -23,6 +25,11 @@ dependencies = [
     "wemake-python-styleguide>=1.5.0",
     "mercantile>=1.2.1",
     "dvc[ssh]>=3.66.1",
+    "torchvision",
+    "albumentations",
+    "pytest",
+    "tensorboard",
+    "torch==2.5.1",
 ]
 
 [tool.ruff]
@@ -42,13 +49,14 @@ exclude = [
 [tool.flake8]
 exclude = [
     "scripts/*.py",
+    "src/loader.py",
 ]
 # Оставляем только правила WPS, так как остальное проверит Ruff
 select = "WPS"
 # Настройка специфичных для WPS параметров
 max-line-length = 120
 show-source = true
-ignore = ["WPS111", "WPS420", "WPS100"]
+ignore = ["WPS111", "WPS420", "WPS100", "WPS201"]
 max-methods = 10
 max-line-complexity = 20
 max-module-members = 10
@@ -64,4 +72,3 @@ exclude = [
     "^scripts/",
 ]
 explicit_package_bases = true
-
