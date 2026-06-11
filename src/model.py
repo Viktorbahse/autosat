@@ -1,4 +1,5 @@
-from typing import Any, List, Optional
+# src/model.py
+from typing import Any, List, Optional, Tuple, Union
 
 import torch
 from lightning import LightningModule
@@ -8,30 +9,62 @@ from torchmetrics import MeanMetric
 
 from src.losses import CrossEntropyLoss2d, FocalLoss2d, LovaszLoss2d, mIoULoss2d
 from src.metrics import Metrics
+from src.pspnet import PSPNet
 from src.unet import UNet
 
 
-class Model(LightningModule):  # noqa: WPS230 WPS214
+class Model(LightningModule):
     def __init__(self, cfg: DictConfig, weights: Optional[List[float]] = None) -> None:
         super().__init__()
 
+        self.save_hyperparameters(
+            {"cfg_type": str(cfg.type), "num_classes": int(cfg.num_classes), "loss": str(cfg.loss)}
+        )
         self.cfg = cfg
         self.weight = weights
+
         if self.cfg.cuda:
             torch.backends.cudnn.benchmark = True
 
+        self._init_model()
         self._init_criterion()
+
         self.train_loss = MeanMetric()
         self.val_loss = MeanMetric()
 
         self.val_metric = Metrics(range(self.cfg.num_classes), self.cfg.metric)
         self.test_metric = Metrics(range(self.cfg.num_classes), self.cfg.metric)
 
-        self.net = UNet(self.cfg.num_classes)
+    def _init_model(self) -> None:
+        if self.cfg.type == "unet50":
+            self.net = UNet(self.cfg.num_classes)
+        elif self.cfg.type == "pspnet50":
+            self.net = PSPNet(
+                num_classes=self.cfg.num_classes,
+                layers=50,
+                bins=(1, 2, 3, 6),
+            )
+        else:
+            raise ValueError(f"Unknown model type: {self.cfg.type}")
+
+    def _init_criterion(self) -> None:
+        if self.weight is None:
+            self.weight = [1.0 for _ in range(int(self.cfg.num_classes))]
+
+        weight_tensor = torch.Tensor(self.weight)
+
+        if self.cfg.loss == "CrossEntropy":
+            self.criterion = CrossEntropyLoss2d(weight=weight_tensor)
+        elif self.cfg.loss == "mIoU":
+            self.criterion = mIoULoss2d(weight=weight_tensor)
+        elif self.cfg.loss == "Focal":
+            self.criterion = FocalLoss2d(weight=weight_tensor)
+        elif self.cfg.loss == "Lovasz":
+            self.criterion = LovaszLoss2d()
+        else:
+            raise ValueError(f"Unknown loss type: {self.cfg.loss}")
 
     def configure_optimizers(self) -> dict[str, Any]:
-        """создаем и возвращаем оптимизатор и scheduler"""
-
         optimizer = AdamW(
             params=self.net.parameters(),
             lr=self.cfg.opt.lr,
@@ -56,70 +89,60 @@ class Model(LightningModule):  # noqa: WPS230 WPS214
     def forward(self, images: torch.Tensor) -> torch.Tensor:
         return self.net(images)
 
+    def training_step(self, batch: list[torch.Tensor], batch_idx: int) -> Union[torch.Tensor, Tuple[torch.Tensor, ...]]:
+        images, targets = batch
+        targets = targets.long()
+
+        if self.net.training and hasattr(self.net, "aux_loss") and self.net.aux_loss:
+            logits, aux_logits, _ = self.net(images, targets)
+
+            main_loss = self.criterion(logits, targets)
+
+            aux_loss = self.criterion(aux_logits, targets)
+
+            loss = main_loss + self.net.aux_weight * aux_loss
+
+            self.log("train/main_loss", main_loss, prog_bar=False)
+            self.log("train/aux_loss", aux_loss, prog_bar=False)
+        else:
+            logits = self.net(images)
+            loss = self.criterion(logits, targets)
+
+        self.train_loss(loss)
+
+        return loss
+
+    def validation_step(self, batch: list[torch.Tensor], batch_idx: int) -> None:
+        images, targets = batch
+        targets = targets.long()
+
+        logits = self.net(images)
+        loss = self.criterion(logits, targets)
+
+        self.val_loss(loss)
+        self.val_metric.add(logits, targets)
+
+    def test_step(self, batch: list[torch.Tensor], batch_idx: int) -> None:
+        images, targets = batch
+        logits = self(images)
+        self.test_metric.add(logits, targets)
+
     def on_train_epoch_end(self) -> None:
-        """вызывается в конце каждой эпохи обучения"""
         loss = self.train_loss.compute()
         self.train_loss.reset()
-        self.log("train/loss", loss)
-
-    def on_train_epoch_start(self) -> None:
-        """эта функция вызывается в начале каждой эпохи обучения"""
-        pass
+        self.log("train/loss", loss, prog_bar=True)
 
     def on_validation_epoch_end(self) -> None:
-        """вызывается в конце каждой эпохи валидации"""
         loss = self.val_loss.compute()
         self.val_loss.reset()
 
         metric = self.val_metric.compute()
         self.val_metric.reset()
 
-        self.log("val/loss", loss)
+        self.log("val/loss", loss, prog_bar=True)
         self.log("val/metric", metric, prog_bar=True)
 
     def on_test_epoch_end(self) -> None:
-        """вызывается в конце тестирования"""
         metric = self.test_metric.compute()
         self.test_metric.reset()
-
-        self.log("test/metric", metric)
-
-    def test_step(self, batch: list[torch.Tensor], batch_idx: int) -> None:
-        """вызывается для каждого батча при тестировании"""
-        images, targets = batch
-        logits = self(images)
-        self.test_metric.add(logits, targets)
-
-    def training_step(self, batch: list[torch.Tensor], batch_idx: int) -> torch.Tensor:  # noqa: WPS210
-        """вызывается для каждого батча обучения"""
-        images, targets = batch
-        targets = targets.long()
-
-        logits = self(images)
-        loss = self.criterion(logits, targets)
-        self.train_loss(loss)
-
-        return loss
-
-    def validation_step(self, batch: list[torch.Tensor], batch_idx: int) -> None:
-        """вызывается для каждого батча на валидации"""
-        images, targets = batch
-        targets = targets.long()
-
-        logits = self(images)
-        loss = self.criterion(logits, targets)
-
-        self.val_loss(loss)
-        self.val_metric.add(logits, targets)
-
-    def _init_criterion(self):
-        if self.weight is None:
-            self.weight = [1 for _ in range(int(self.cfg.num_classes))]
-        if self.cfg.loss == "CrossEntropy":
-            self.criterion = CrossEntropyLoss2d(weight=torch.Tensor(self.weight))
-        elif self.cfg.loss == "mIoU":
-            self.criterion = mIoULoss2d(weight=torch.Tensor(self.weight))
-        elif self.cfg.loss == "Focal":
-            self.criterion = FocalLoss2d(weight=torch.Tensor(self.weight))
-        elif self.cfg.loss == "Lovasz":
-            self.criterion = LovaszLoss2d()
+        self.log("test/metric", metric, prog_bar=True)

@@ -157,9 +157,12 @@ class Loader(LightningDataModule):  # noqa: WPS230
     def setup(self, stage: Optional[str] = None):
         if stage == "fit" or stage is None:
             self.prepare_data()
+            size = self.cfg.image_size
+            if self.cfg.model == "pspnet50" or "pspnet101":
+                size += 1
             train_val_transform = A.Compose(
                 [
-                    A.Resize(height=self.cfg.image_size, width=self.cfg.image_size, p=1.0),
+                    A.Resize(height=size, width=size, p=1.0),
                     A.HorizontalFlip(p=0.5),
                     A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
                     ToTensorV2(),
@@ -167,7 +170,7 @@ class Loader(LightningDataModule):  # noqa: WPS230
             )
             test_transform = A.Compose(
                 [
-                    A.Resize(height=self.cfg.image_size, width=self.cfg.image_size, p=1.0),
+                    A.Resize(height=size, width=size, p=1.0),
                     A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
                     ToTensorV2(),
                 ],

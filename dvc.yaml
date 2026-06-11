@@ -37,7 +37,6 @@ stages:
     deps:
     - src/train.py
     - src/loader.py
-    - ${prepare_satellite_data.dataset_dir}
     outs:
     - data/logs/DvcLiveLogger/model_training/checkpoints/
     - data/logs/dvclive/artifacts/
@@ -56,6 +55,8 @@ stages:
     - ${training.loader.keep_split}
 
 
+params:
+- data/logs/dvclive/params.yaml
 metrics:
 - data/logs/dvclive/metrics.json
 plots:
@@ -63,5 +64,5 @@ plots:
     x: step
 artifacts:
   best:
-    path: data/logs/dvclive/artifacts/epoch=0-step=900.ckpt
+    path: data/logs/dvclive/artifacts/epoch=0-step=700.ckpt
     type: model

@@ -84,6 +84,9 @@ def predict_by_images(images, model, device, batch_size, image_size, number_of_c
 
 
 def main(cfg: DictConfig):  # noqa: WPS210 WPS231
+    image_size = cfg.image_size
+    if cfg.model_type == "pspnet50":
+        image_size += 1
     make_dir(cfg.data_out, delete_if_exist=True)
 
     checkpoint_path = Path(cfg.checkpoint_path)
@@ -122,7 +125,7 @@ def main(cfg: DictConfig):  # noqa: WPS210 WPS231
             step = 3
             indices = range(0, channels_count - 1, step)
             images = [f["data"][..., i : i + step] for i in indices]
-            pred = predict_by_images(images, model, device, cfg.batch_size, cfg.image_size, len(cfg.classes) + 1)
+            pred = predict_by_images(images, model, device, cfg.batch_size, image_size, len(cfg.classes) + 1)
             pred = np.argmax(pred, axis=-1)
             mask = restoring_class_brightness(pred, cfg.classes)
             img = Image.fromarray(mask, "L")

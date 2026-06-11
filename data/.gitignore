@@ -41,3 +41,4 @@ logs/
 /satellite
 /dataset
 /predict
+/initmodel
