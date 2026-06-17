@@ -9,10 +9,10 @@ prepare_satellite_data:
   tile_size: 256 # размер тайла в пикселях
   dataset_dir: data/dataset
   map_box: ## Координаты, ограничивающие выбранную область
-  - 37.16000 # min_lon
-  - 55.56573 # min_lat
-  - 38.00000 # max_lon
-  - 55.88764 # max_lat
+  - 37.52140 # min_lon
+  - 55.69713 # min_lat
+  - 37.69341 # max_lon
+  - 55.79086 # max_lat
   osm: data/map.osm.pbf
   sources: ## TMS сервисы
     google: "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
@@ -33,7 +33,7 @@ training:
   random_seed: 42
   logs_dir: data/logs
   classes: ${prepare_satellite_data.classes}
-  num_epoch: 1
+  num_epoch: 50
   loader:
     model: ${training.model.type}
     dataset_dir: ${prepare_dataset.dataset_dir}
@@ -45,7 +45,7 @@ training:
     num_workers: 8
     image_size: 256
   model:
-    type: 'pspnet50' #доступно unet50
+    type: 'segformerb2' #доступно unet50, segformerb2, pspnet50
     loss: 'mIoU' # доступные значения: ['Lovasz', 'Focal', 'mIoU', 'CrossEntropy']
     metric: 'miou' # доступные метрики: ['miou', 'fg_iou', 'mcc']
     cuda: true
@@ -60,7 +60,7 @@ training:
       eta_min: 1e-6
 evaluate:
   model_type: ${training.model.type}
-  data_out: data/predict/
+  data_out: data/predict_metric_model/
   checkpoint_path: ${training.logs_dir}/DvcLiveLogger/model_training/checkpoints/
   batch_size: ${training.loader.batch_size}
   classes: ${prepare_satellite_data.classes}

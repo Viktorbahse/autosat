@@ -16,8 +16,6 @@ NUMBER_OF_PIXELS_SUFFIX = "_number_of_pixels"
 
 
 def main(cfg: DictConfig):  # noqa: WPS210 WPS213 WPS231
-    # set_seed(cfg.random_seed)
-
     make_dir(cfg.logs_dir, delete_if_exist=False)
 
     loader = Loader(cfg.loader)
@@ -32,19 +30,16 @@ def main(cfg: DictConfig):  # noqa: WPS210 WPS213 WPS231
 
     logger = DVCLiveLogger(run_name="model_training", log_model=True, dir=f"{cfg.logs_dir}/dvclive")
 
-    # Trainer сам выберет лучший ускоритель, если он явно не задан
     trainer = Trainer(
         max_epochs=cfg.num_epoch,
-        default_root_dir=f"{cfg.logs_dir}",  # путь к checkpoints
+        default_root_dir=f"{cfg.logs_dir}",
         callbacks=callbacks,
         logger=logger,
         log_every_n_steps=1,
     )
 
-    # train / val loop
     trainer.fit(model, loader)
 
-    # тестирование
     trainer.test(model, loader)
 
 

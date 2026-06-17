@@ -1,6 +1,6 @@
 import torch
-import torch.nn as nn  # noqa: WPS301
-import torch.utils.model_zoo as model_zoo  # noqa: WPS301
+from torch import nn
+from torch.utils import model_zoo
 
 __all__ = ["ResNet", "resnet18", "resnet34", "resnet50", "resnet101", "resnet152"]  # noqa: WPS410
 
@@ -188,9 +188,8 @@ def resnet50(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
     if pretrained:
-        # model.load_state_dict(model_zoo.load_url(model_urls['resnet50']))
-        model_path = "./initmodel/resnet50_v2.pth"
-        model.load_state_dict(torch.load(model_path), strict=False)
+        url = "https://drive.google.com/uc?export=download&id=1RUotuQmxq8Q52e5iGkNico8DyTSYCBcl"
+        model.load_state_dict(model_zoo.load_url(url), strict=False)
     return model
 
 
@@ -202,9 +201,8 @@ def resnet101(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 4, 23, 3], **kwargs)
     if pretrained:
-        # model.load_state_dict(model_zoo.load_url(model_urls['resnet101']))
-        model_path = "./initmodel/resnet101_v2.pth"
-        model.load_state_dict(torch.load(model_path), strict=False)
+        url = "https://drive.google.com/uc?export=download&id=1cw4sxXQeSyV62EGXAwaocucw1MyKDNwn"
+        model.load_state_dict(model_zoo.load_url(url), strict=False)
     return model
 
 
@@ -216,7 +214,6 @@ def resnet152(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 8, 36, 3], **kwargs)
     if pretrained:
-        # model.load_state_dict(model_zoo.load_url(model_urls['resnet152']))
-        model_path = "./initmodel/resnet152_v2.pth"
-        model.load_state_dict(torch.load(model_path), strict=False)
+        url = "https://drive.google.com/uc?export=download&id=1sPd9vqTLCEeevp5TdP__IQgDBOJ0CYlt"
+        model.load_state_dict(model_zoo.load_url(url), strict=False)
     return model

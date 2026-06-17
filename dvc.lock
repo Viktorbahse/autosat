@@ -2,32 +2,32 @@ schema: '2.0'
 stages:
   download_and_extract_osm:
     cmd: "wget -c --limit-rate=10M -P data/  \"https://download.geofabrik.de/russia/central-fed-district-latest.osm.pbf\"\
-      \ && osmium extract --bbox  \"37.16,55.56573,38.0,55.88764\" data/central-fed-district-latest.osm.pbf\
+      \ && osmium extract --bbox  \"37.53325,55.67991,37.56311,55.70855\" data/central-fed-district-latest.osm.pbf\
       \  --output data/map.osm.pbf\n"
     params:
       params.yaml:
         prepare_satellite_data.map_box:
-        - 37.16
-        - 55.56573
-        - 38.0
-        - 55.88764
+        - 37.53325
+        - 55.67991
+        - 37.56311
+        - 55.70855
         prepare_satellite_data.osm: data/map.osm.pbf
     outs:
     - path: data/central-fed-district-latest.osm.pbf
       hash: md5
-      md5: 06c7499e4ed1b2832d5600a9aec94e73
-      size: 865262128
+      md5: 4194bad2ad76277d77ef5462e2f11e5f
+      size: 865654003
     - path: data/map.osm.pbf
       hash: md5
-      md5: 56e15738f57b4a61f36617c859cafb00
-      size: 80414991
+      md5: b55ddc943e6e9f63e6a9d6e44b33675a
+      size: 580462
   prepare_satellite_data:
     cmd: python scripts/prepare_satellite_data.py
     deps:
     - path: data/map.osm.pbf
       hash: md5
-      md5: 993b4ab6522e11246cbbc69bf3708b95
-      size: 610718
+      md5: b55ddc943e6e9f63e6a9d6e44b33675a
+      size: 580462
     - path: scripts/prepare_satellite_data.py
       hash: md5
       md5: 237bb72d245b2c6d292cfda5651961dd
@@ -47,10 +47,10 @@ stages:
           tile_size: 256
           dataset_dir: data/dataset
           map_box:
-          - 37.54852
-          - 55.71106
-          - 37.58011
-          - 55.7333
+          - 37.53325
+          - 55.67991
+          - 37.56311
+          - 55.70855
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -61,17 +61,17 @@ stages:
     outs:
     - path: data/satellite
       hash: md5
-      md5: 621a86e751859602f105c742c836012f.dir
-      size: 82848769
-      nfiles: 100
+      md5: dbda07085ce407765892875ca5e03972.dir
+      size: 115411288
+      nfiles: 140
   prepare_dataset:
     cmd: python scripts/prepare_dataset.py
     deps:
     - path: data/satellite
       hash: md5
-      md5: 621a86e751859602f105c742c836012f.dir
-      size: 82848769
-      nfiles: 100
+      md5: dbda07085ce407765892875ca5e03972.dir
+      size: 115411288
+      nfiles: 140
     - path: scripts/prepare_dataset.py
       hash: md5
       md5: 94d89c905534cfacab90941368508c8a
@@ -90,25 +90,20 @@ stages:
     outs:
     - path: data/dataset
       hash: md5
-      md5: 5850e8c68e20eeed9f34dcd9f7fa61dd.dir
-      size: 1838435040
-      nfiles: 20
+      md5: 6af2a8909ae8b5ec59ee99767a234fdb.dir
+      size: 2573809056
+      nfiles: 28
   training:
     cmd: python src/train.py
     deps:
-    - path: data/dataset
-      hash: md5
-      md5: e4ca91d6d07f48a7f8ba5a1f44a9f1af.dir
-      size: 1838435720
-      nfiles: 21
     - path: src/loader.py
       hash: md5
-      md5: f1ebefba8117bde757c28eba9dbef03a
-      size: 7328
+      md5: ae1ec74bd82aa9ad677391ad1425d5c9
+      size: 7348
     - path: src/train.py
       hash: md5
-      md5: f25f613c2e9e488954557b5379a78c53
-      size: 1524
+      md5: 92aa3c2d76c42615097f2a3417913334
+      size: 1301
     params:
       params.yaml:
         training:
@@ -123,11 +118,11 @@ stages:
             val_ratio: 0.15
             test_ratio: 0.15
             keep_split: data/dataset/data_split_flags.json
-            batch_size: 2
+            batch_size: 1
             num_workers: 8
             image_size: 256
           model:
-            type: pspnet50
+            type: unet50
             loss: mIoU
             metric: miou
             cuda: true
@@ -145,36 +140,22 @@ stages:
     outs:
     - path: data/logs/DvcLiveLogger/model_training/checkpoints/
       hash: md5
-      md5: e236a4cbf7e1e688c21c8565a337e6ea.dir
-      size: 561012438
+      md5: 08198c1ffc2f3926fa8805ff43821a64.dir
+      size: 456778092
       nfiles: 1
     - path: data/logs/dvclive/artifacts/
       hash: md5
-      md5: e236a4cbf7e1e688c21c8565a337e6ea.dir
-      size: 561012438
+      md5: 08198c1ffc2f3926fa8805ff43821a64.dir
+      size: 456778092
       nfiles: 1
     - path: data/logs/dvclive/metrics.json
       hash: md5
-      md5: 659676eb552bcd51b2f21d542c0ab2f8
+      md5: 28c8b66721052ff7702af3c4f06efc67
       size: 268
     - path: data/logs/dvclive/plots/metrics
       hash: md5
-      md5: 12ab335ec2b0232d38fefa3278d6c48b.dir
-      size: 188
+      md5: 24134a7991b1992d0f9ca2ec4b6f2a9f.dir
+      size: 194
       nfiles: 6
   evaluate:
     cmd: python src/evaluate.py
-    deps:
-    - path: data/dataset/data_split_flags.json
-      hash: md5
-      md5: 92b5f317a110beeec764b5d905a025a4
-      size: 680
-    - path: data/logs/DvcLiveLogger/model_training/checkpoints/
-      hash: md5
-      md5: e236a4cbf7e1e688c21c8565a337e6ea.dir
-      size: 561012438
-      nfiles: 1
-    - path: src/evaluate.py
-      hash: md5
-      md5: e69c729f704b4d91eeff10e9da668604
-      size: 4617

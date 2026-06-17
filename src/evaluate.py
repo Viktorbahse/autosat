@@ -125,10 +125,13 @@ def main(cfg: DictConfig):  # noqa: WPS210 WPS231
             step = 3
             indices = range(0, channels_count - 1, step)
             images = [f["data"][..., i : i + step] for i in indices]
-            pred = predict_by_images(images, model, device, cfg.batch_size, image_size, len(cfg.classes) + 1)
+            padded_images = [np.zeros((f["data"].shape[0]+2*image_size, f["data"].shape[1]+2*image_size, 3), dtype=np.uint8) for _ in range(len(images))]
+            for padded_image, image in zip(padded_images, images):
+                padded_image[image_size:-image_size, image_size:-image_size, 0:3]=image
+            pred = predict_by_images(padded_images, model, device, cfg.batch_size, image_size, len(cfg.classes) + 1)
             pred = np.argmax(pred, axis=-1)
             mask = restoring_class_brightness(pred, cfg.classes)
-            img = Image.fromarray(mask, "L")
+            img = Image.fromarray(mask[image_size:-image_size, image_size:-image_size], "L")
             img.save(output_path / "prediction.jpg")
 
 

@@ -6,6 +6,7 @@ from lightning import LightningModule
 from omegaconf import DictConfig
 from torch.optim import AdamW, lr_scheduler
 from torchmetrics import MeanMetric
+from transformers import AutoModelForSemanticSegmentation, SegformerImageProcessor
 
 from src.losses import CrossEntropyLoss2d, FocalLoss2d, LovaszLoss2d, mIoULoss2d
 from src.metrics import Metrics
@@ -44,6 +45,14 @@ class Model(LightningModule):
                 layers=50,
                 bins=(1, 2, 3, 6),
             )
+        elif self.cfg.type == "segformerb2":
+            model_name = "nvidia/mit-b2"
+            self.net = AutoModelForSemanticSegmentation.from_pretrained(
+                model_name,
+                num_labels=self.cfg.num_classes,
+                ignore_mismatched_sizes=True,
+                use_safetensors=True
+            )
         else:
             raise ValueError(f"Unknown model type: {self.cfg.type}")
 
@@ -63,6 +72,21 @@ class Model(LightningModule):
             self.criterion = LovaszLoss2d()
         else:
             raise ValueError(f"Unknown loss type: {self.cfg.loss}")
+
+    def _get_logits(self, output):
+        if hasattr(output, 'logits'):
+            return output.logits
+        return output
+
+    def _resize_logits(self, logits, targets):
+        if logits.shape[-2:] != targets.shape[-2:]:
+            logits = torch.nn.functional.interpolate(
+                logits,
+                size=targets.shape[-2:],
+                mode='bilinear',
+                align_corners=False
+            )
+        return logits
 
     def configure_optimizers(self) -> dict[str, Any]:
         optimizer = AdamW(
@@ -89,34 +113,32 @@ class Model(LightningModule):
     def forward(self, images: torch.Tensor) -> torch.Tensor:
         return self.net(images)
 
-    def training_step(self, batch: list[torch.Tensor], batch_idx: int) -> Union[torch.Tensor, Tuple[torch.Tensor, ...]]:
+    def training_step(self, batch: list[torch.Tensor], batch_idx: int) -> torch.Tensor:
         images, targets = batch
         targets = targets.long()
 
-        if self.net.training and hasattr(self.net, "aux_loss") and self.net.aux_loss:
-            logits, aux_logits, _ = self.net(images, targets)
+        outputs = self.net(images)
 
-            main_loss = self.criterion(logits, targets)
+        logits = self._get_logits(outputs)
 
-            aux_loss = self.criterion(aux_logits, targets)
+        # Приводим к размеру targets
+        logits = self._resize_logits(logits, targets)
 
-            loss = main_loss + self.net.aux_weight * aux_loss
-
-            self.log("train/main_loss", main_loss, prog_bar=False)
-            self.log("train/aux_loss", aux_loss, prog_bar=False)
-        else:
-            logits = self.net(images)
-            loss = self.criterion(logits, targets)
+        loss = self.criterion(logits, targets)
 
         self.train_loss(loss)
-
         return loss
 
     def validation_step(self, batch: list[torch.Tensor], batch_idx: int) -> None:
         images, targets = batch
         targets = targets.long()
 
-        logits = self.net(images)
+        outputs = self.net(images)
+
+        logits = self._get_logits(outputs)
+
+        logits = self._resize_logits(logits, targets)
+
         loss = self.criterion(logits, targets)
 
         self.val_loss(loss)
@@ -124,7 +146,13 @@ class Model(LightningModule):
 
     def test_step(self, batch: list[torch.Tensor], batch_idx: int) -> None:
         images, targets = batch
-        logits = self(images)
+
+        outputs = self(images)
+
+        logits = self._get_logits(outputs)
+
+        logits = self._resize_logits(logits, targets)
+
         self.test_metric.add(logits, targets)
 
     def on_train_epoch_end(self) -> None:
