@@ -158,7 +158,7 @@ class Loader(LightningDataModule):  # noqa: WPS230
         if stage == "fit" or stage is None:
             self.prepare_data()
             size = self.cfg.image_size
-            if self.cfg.model == "pspnet50" or "pspnet101":
+            if self.cfg.model == "pspnet50" or self.cfg.model == "pspnet101":
                 size += 1
             train_val_transform = A.Compose(
                 [

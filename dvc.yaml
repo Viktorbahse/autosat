@@ -49,10 +49,6 @@ stages:
         x: step
   evaluate:
     cmd: python src/evaluate.py
-    deps:
-    - src/evaluate.py
-    - data/logs/DvcLiveLogger/model_training/checkpoints/
-    - ${training.loader.keep_split}
 
 
 params:
@@ -64,5 +60,5 @@ plots:
     x: step
 artifacts:
   best:
-    path: data/logs/dvclive/artifacts/epoch=0-step=700.ckpt
+    path: data/logs/dvclive/artifacts/epoch=3-step=1600.ckpt
     type: model

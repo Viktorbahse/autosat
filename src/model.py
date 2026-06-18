@@ -1,6 +1,7 @@
 # src/model.py
 from typing import Any, List, Optional, Tuple, Union
 
+import segmentation_models_pytorch as smp
 import torch
 from lightning import LightningModule
 from omegaconf import DictConfig
@@ -43,6 +44,13 @@ class Model(LightningModule):
                 num_classes=self.cfg.num_classes,
                 layers=50,
                 bins=(1, 2, 3, 6),
+            )
+        elif self.cfg.type == "deeplabv3plus":
+            self.net = smp.DeepLabV3Plus(
+                encoder_name="resnet50",
+                encoder_weights="imagenet",
+                in_channels=3,
+                classes=int(self.cfg.num_classes)
             )
         else:
             raise ValueError(f"Unknown model type: {self.cfg.type}")
