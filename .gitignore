@@ -4,6 +4,12 @@ __pycache__
 .mypy_cache
 .DS_Store
 
+wget-log
+wget-log.*
+.python-version
+
+data/
+
 .venv/
 .ipynb_checkpoints/
 scripts/.ipynb_checkpoints/
