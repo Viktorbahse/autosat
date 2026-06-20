@@ -49,6 +49,14 @@
     # stage 3:
     # объединить скачанные изображения и маски в один HDF-файл
     dvc repro prepare_dataset
+
+    # stage 4
+    # обучение модели
+    dvc repro training
+
+    # stage 5:
+    # инференс модели
+    dvc repro evaluate
 ```
 
 #### **Pre-commit check**

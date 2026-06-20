@@ -1,7 +1,9 @@
 stages:
   download_and_extract_osm:
-    cmd: wget -c --limit-rate=10M -P data/ "https://download.geofabrik.de/russia/central-fed-district-latest.osm.pbf" &&
-         osmium extract --bbox "${prepare_satellite_data.map_box[0]},${prepare_satellite_data.map_box[1]},${prepare_satellite_data.map_box[2]},${prepare_satellite_data.map_box[3]}" data/central-fed-district-latest.osm.pbf --output ${prepare_satellite_data.osm}
+    cmd: >
+      wget -c --limit-rate=10M -P data/  "https://download.geofabrik.de/russia/central-fed-district-latest.osm.pbf"
+      && osmium extract --bbox  "${prepare_satellite_data.map_box[0]},${prepare_satellite_data.map_box[1]},${prepare_satellite_data.map_box[2]},${prepare_satellite_data.map_box[3]}"
+      data/central-fed-district-latest.osm.pbf  --output ${prepare_satellite_data.osm}
     outs:
     - data/central-fed-district-latest.osm.pbf
     - ${prepare_satellite_data.osm}
@@ -11,6 +13,8 @@ stages:
 
   prepare_satellite_data:
     cmd: python scripts/prepare_satellite_data.py
+    deps:
+    - scripts/prepare_satellite_data.py
     outs:
     - ${prepare_satellite_data.data_dir}
     params:
@@ -18,7 +22,41 @@ stages:
 
   prepare_dataset:
     cmd: python scripts/prepare_dataset.py
+    deps:
+    - scripts/prepare_dataset.py
+    - ${prepare_satellite_data.data_dir}
     outs:
-    - ${prepare_satellite_data.dataset_dir}
+    - ${prepare_satellite_data.dataset_dir}:
+        cache: false
     params:
-    - prepare_satellite_data
+    - prepare_dataset
+
+  training:
+    cmd: python src/train.py
+    deps:
+    - src/train.py
+    - src/loader.py
+    - src/model.py
+    - src/metrics.py
+    - src/losses.py
+    outs:
+    - data/logs/DvcLiveLogger/model_training/checkpoints/
+    - data/logs/dvclive/artifacts/
+    params:
+    - training
+    metrics:
+    - data/logs/dvclive/metrics.json
+    plots:
+    - data/logs/dvclive/plots/metrics:
+        x: step
+  evaluate:
+    cmd: python src/evaluate.py
+
+
+params:
+- data/logs/dvclive/params.yaml
+metrics:
+- data/logs/dvclive/metrics.json
+plots:
+- data/logs/dvclive/plots/metrics:
+    x: step

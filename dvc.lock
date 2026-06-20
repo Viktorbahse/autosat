@@ -1,54 +1,56 @@
 schema: '2.0'
 stages:
   download_and_extract_osm:
-    cmd: wget -c --limit-rate=10M -P data/
-      "https://download.geofabrik.de/russia/central-fed-district-latest.osm.pbf"
-      && osmium extract --bbox "36.9,55.38,38.0,56.0"
-      data/central-fed-district-latest.osm.pbf --output data/map.osm.pbf
+    cmd: "wget -c --limit-rate=10M -P data/  \"https://download.geofabrik.de/russia/central-fed-district-latest.osm.pbf\"\
+      \ && osmium extract --bbox  \"37.53239,55.68029,37.55917,55.69829\" data/central-fed-district-latest.osm.pbf\
+      \  --output data/map.osm.pbf\n"
     params:
       params.yaml:
         prepare_satellite_data.map_box:
-        - 36.9
-        - 55.38
-        - 38.0
-        - 56.0
+        - 37.53239
+        - 55.68029
+        - 37.55917
+        - 55.69829
         prepare_satellite_data.osm: data/map.osm.pbf
     outs:
     - path: data/central-fed-district-latest.osm.pbf
       hash: md5
-      md5: 78529255598dcc6cb3c311d64c78c869
-      size: 855496502
+      md5: e9ab5a49868de63d9577c2f0f3e653c1
+      size: 865785188
     - path: data/map.osm.pbf
       hash: md5
-      md5: 2756409c2d046eca1d1e9bbe0447352d
-      size: 115338484
+      md5: eca24ea109109972e5e6325b3f2baec3
+      size: 402339
   prepare_satellite_data:
     cmd: python scripts/prepare_satellite_data.py
+    deps:
+    - path: data/map.osm.pbf
+      hash: md5
+      md5: eca24ea109109972e5e6325b3f2baec3
+      size: 402339
+    - path: scripts/prepare_satellite_data.py
+      hash: md5
+      md5: 237bb72d245b2c6d292cfda5651961dd
+      size: 13155
     params:
       params.yaml:
         prepare_satellite_data:
           classes:
-          - - road
-            - 204
           - - building
             - 255
-          - - parking
+          - - road
             - 153
-          - - water
-            - 102
-          - - field
-            - 51
           data_dir: data/satellite
-          max_workers: 4
-          zoom: 17
+          max_workers: 8
+          zoom: 19
           num_tiles: 10
           tile_size: 256
           dataset_dir: data/dataset
           map_box:
-          - 36.9
-          - 55.38
-          - 38.0
-          - 56.0
+          - 37.53239
+          - 55.68029
+          - 37.55917
+          - 55.69829
           osm: data/map.osm.pbf
           sources:
             google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -59,46 +61,101 @@ stages:
     outs:
     - path: data/satellite
       hash: md5
-      md5: 3dd5fb3239d2bdf8d78c918e674766a4.dir
-      size: 9848127779
-      nfiles: 8000
+      md5: 9aff569791dd7e40e3825ede802c1606.dir
+      size: 50286119
+      nfiles: 60
   prepare_dataset:
     cmd: python scripts/prepare_dataset.py
+    deps:
+    - path: data/satellite
+      hash: md5
+      md5: 9aff569791dd7e40e3825ede802c1606.dir
+      size: 50286119
+      nfiles: 60
+    - path: scripts/prepare_dataset.py
+      hash: md5
+      md5: 94d89c905534cfacab90941368508c8a
+      size: 3671
     params:
       params.yaml:
-        prepare_satellite_data:
-          classes:
-          - - road
-            - 204
-          - - building
-            - 255
-          - - parking
-            - 153
-          - - water
-            - 102
-          - - field
-            - 51
-          data_dir: data/satellite
-          max_workers: 4
-          zoom: 17
-          num_tiles: 10
-          tile_size: 256
-          dataset_dir: data/dataset
-          map_box:
-          - 36.9
-          - 55.38
-          - 38.0
-          - 56.0
-          osm: data/map.osm.pbf
-          sources:
-            google: http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
-            bing: http://a0.ortho.tiles.virtualearth.net/tiles/a{}.jpeg?g=2
-            arcgis:
-              https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}
-            yandex: https://sat04.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}
+        prepare_dataset:
+          satellite_dir:
+            ${prepare_satellite_data.data_dir}/${prepare_satellite_data.zoom}
+          dataset_dir: ${prepare_satellite_data.dataset_dir}
+          max_workers: 8
+          num_tiles: ${prepare_satellite_data.num_tiles}
+          tile_size: ${prepare_satellite_data.tile_size}
+          classes: ${prepare_satellite_data.classes}
+          zoom: ${prepare_satellite_data.zoom}
     outs:
     - path: data/dataset
       hash: md5
-      md5: dec183a583732bf5b530cd63bb95e49d.dir
-      size: 147074598400
-      nfiles: 1600
+      md5: 0e3b9c980e250138644a8cb6776cd0af.dir
+      size: 1103061024
+      nfiles: 12
+  training:
+    cmd: python src/train.py
+    deps:
+    - path: src/loader.py
+      hash: md5
+      md5: ae1ec74bd82aa9ad677391ad1425d5c9
+      size: 7348
+    - path: src/train.py
+      hash: md5
+      md5: f25f613c2e9e488954557b5379a78c53
+      size: 1524
+    params:
+      params.yaml:
+        training:
+          random_seed: 42
+          logs_dir: data/logs
+          classes: ${prepare_satellite_data.classes}
+          num_epoch: 4
+          loader:
+            model: ${training.model.type}
+            dataset_dir: ${prepare_dataset.dataset_dir}
+            train_ratio: 0.7
+            val_ratio: 0.15
+            test_ratio: 0.15
+            keep_split: data/dataset/data_split_flags.json
+            batch_size: 2
+            num_workers: 8
+            image_size: 256
+          model:
+            type: deeplabv3plus
+            loss: mIoU
+            metric: miou
+            cuda: true
+            num_classes: 3
+            opt:
+              lr: 0.001
+              betas:
+              - 0.9
+              - 0.999
+              eps: 1e-08
+              weight_decay: 0.0001
+            sch:
+              num_epoch: ${training.num_epoch}
+              eta_min: 1e-06
+    outs:
+    - path: data/logs/DvcLiveLogger/model_training/checkpoints/
+      hash: md5
+      md5: 02c210476b310fb3fc378c5fcd044e2d.dir
+      size: 320679282
+      nfiles: 1
+    - path: data/logs/dvclive/artifacts/
+      hash: md5
+      md5: 02c210476b310fb3fc378c5fcd044e2d.dir
+      size: 320679282
+      nfiles: 1
+    - path: data/logs/dvclive/metrics.json
+      hash: md5
+      md5: dfc5c241b85de99e28190cc999ff6d39
+      size: 285
+    - path: data/logs/dvclive/plots/metrics
+      hash: md5
+      md5: b4cef6606cd628d7a8603ea05f7d34ba.dir
+      size: 522
+      nfiles: 6
+  evaluate:
+    cmd: python src/evaluate.py

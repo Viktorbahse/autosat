@@ -1,21 +1,18 @@
 prepare_satellite_data:
   classes: # Классы для сегментации
-  - [road, 204] # [имя класса, интенсивность маски]
-  - [building, 255]
-  - [parking, 153]
-  - [water, 102]
-  - [field, 51]
+  - [building, 255] # [имя класса, интенсивность маски]
+  - [road, 153]
   data_dir: data/satellite
-  max_workers: 4
-  zoom: 17 # zoom 17 соответствует примерно 1 px / m
+  max_workers: 8
+  zoom: 19 # zoom 17 соответствует примерно 1 px / m
   num_tiles: 10 # число тайлов по ширине и высоте изображения
   tile_size: 256 # размер тайла в пикселях
   dataset_dir: data/dataset
   map_box: ## Координаты, ограничивающие выбранную область
-  - 36.90000 # min_lon
-  - 55.38000 # min_lat
-  - 38.00000 # max_lon
-  - 56.00000 # max_lat
+  - 37.52140 # min_lon
+  - 55.69713 # min_lat
+  - 37.69341 # max_lon
+  - 55.79086 # max_lat
   osm: data/map.osm.pbf
   sources: ## TMS сервисы
     google: "http://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
@@ -24,10 +21,49 @@ prepare_satellite_data:
     yandex: "https://sat04.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}"
 
 prepare_dataset:
-  satellite_dir: data/satellite/17
-  dataset_dir: data/dataset
-  max_workers: 4
+  satellite_dir: ${prepare_satellite_data.data_dir}/${prepare_satellite_data.zoom}
+  dataset_dir: ${prepare_satellite_data.dataset_dir}
+  max_workers: 8
   num_tiles: ${prepare_satellite_data.num_tiles}
   tile_size: ${prepare_satellite_data.tile_size}
   classes: ${prepare_satellite_data.classes}
   zoom: ${prepare_satellite_data.zoom}
+
+training:
+  random_seed: 42
+  logs_dir: data/logs
+  classes: ${prepare_satellite_data.classes}
+  num_epoch: 50
+  loader:
+    model: ${training.model.type}
+    dataset_dir: ${prepare_dataset.dataset_dir}
+    train_ratio: 0.7
+    val_ratio: 0.15
+    test_ratio: 0.15
+    keep_split: "data/dataset/data_split_flags.json"
+    batch_size: 64
+    num_workers: 8
+    image_size: 256
+  model:
+    type: 'unet50' #доступно unet50 deeplabv3plus pspnet50
+    loss: 'mIoU' # доступные значения: ['Lovasz', 'Focal', 'mIoU', 'CrossEntropy']
+    metric: 'miou' # доступные метрики: ['miou', 'fg_iou', 'mcc']
+    cuda: true
+    num_classes: 3
+    opt:
+      lr: 0.001
+      betas: [0.9, 0.999]
+      eps: 1e-08
+      weight_decay: 0.0001
+    sch:
+      num_epoch: ${training.num_epoch}
+      eta_min: 1e-6
+evaluate:
+  model_type: ${training.model.type}
+  data_out: data/predict/
+  checkpoint_path: ${training.logs_dir}/DvcLiveLogger/model_training/checkpoints/
+  batch_size: ${training.loader.batch_size}
+  classes: ${prepare_satellite_data.classes}
+  data_in: ${training.loader.keep_split} #Путь к json файлу, который содержит пути к h5 файлам с фходными данными.
+  image_size: ${training.loader.image_size}
+  model: ${training.model}
