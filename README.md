@@ -6,9 +6,21 @@
 </p>
 
 <p align="center">
-  <img src="assets/mask.png" alt="AutoSat: buildings segmentation" title="AutoSat pipeline extracting buildings" width="600"/>
+  <img src="assets/Спутниковый снимок.jpg" alt="AutoSat: buildings segmentation" title="AutoSat pipeline extracting buildings" width="600"/>
   <br/>
-  <i>Aerial imagery — segmentation mask</i>
+  <i>Спутниковый снимок</i>
+</p>
+
+<p align="center">
+  <img src="assets/Эталонная маска.jpg" alt="AutoSat: buildings segmentation" title="AutoSat pipeline extracting buildings" width="600"/>
+  <br/>
+  <i>OSM разметка</i>
+</p>
+
+<p align="center">
+  <img src="assets/Предсказание модели.jpg" alt="AutoSat: buildings segmentation" title="AutoSat pipeline extracting buildings" width="600"/>
+  <br/>
+  <i>Предсказание модели</i>
 </p>
 
 #### **Подготовка и активация окружения**
