@@ -84,14 +84,14 @@ class UNet(torch.nn.Module):
         self.out_ch = num_filters * 8
 
         # group decoder blocks to reduce public attributes count
-        self._center = DecoderBlock(2048, self.out_ch)  # noqa: WPS432
+        self._center = DecoderBlock(2048, self.out_ch)
         self._dec_blocks = torch.nn.ModuleList(
             [
-                DecoderBlock(2048 + self.out_ch, self.out_ch),  # noqa: WPS432
-                DecoderBlock(1024 + self.out_ch, self.out_ch),  # noqa: WPS432
-                DecoderBlock(512 + self.out_ch, num_filters * 2),  # noqa: WPS432
-                DecoderBlock(256 + num_filters * 2, num_filters * 2 * 2),  # noqa: WPS432
-                DecoderBlock(num_filters * 2 * 2, num_filters),  # noqa: WPS432
+                DecoderBlock(2048 + self.out_ch, self.out_ch),
+                DecoderBlock(1024 + self.out_ch, self.out_ch),
+                DecoderBlock(512 + self.out_ch, num_filters * 2),
+                DecoderBlock(256 + num_filters * 2, num_filters * 2 * 2),
+                DecoderBlock(num_filters * 2 * 2, num_filters),
             ]
         )
         self._conv_relus = torch.nn.ModuleList(
@@ -102,10 +102,10 @@ class UNet(torch.nn.Module):
 
         self.final = torch.nn.Conv2d(num_filters, num_classes, kernel_size=1)
 
-    def forward(self, x):  # noqa: WPS210
+    def forward(self, x):
         """The networks forward pass for which autograd synthesizes the backwards pass."""
         size = x.size()
-        assert size[-1] % 32 == 0 and size[-2] % 32 == 0, "image resolution has to be divisible by 32 for resnet"  # noqa: WPS432
+        assert size[-1] % 32 == 0 and size[-2] % 32 == 0, "image resolution has to be divisible by 32 for resnet"
 
         enc0 = self.resnet.conv1(x)
         enc0 = self.resnet.bn1(enc0)

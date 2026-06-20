@@ -13,8 +13,10 @@ from src.metrics import Metrics
 from src.pspnet import PSPNet
 from src.unet import UNet
 
+RESNET50_NUMBER_OF_LAYERS = 50
 
-class Model(LightningModule):
+
+class Model(LightningModule):  # noqa: 214
     def __init__(self, cfg: DictConfig, weights: Optional[List[float]] = None) -> None:
         super().__init__()
 
@@ -36,41 +38,8 @@ class Model(LightningModule):
         self.val_metric = Metrics(range(self.cfg.num_classes), self.cfg.metric)
         self.test_metric = Metrics(range(self.cfg.num_classes), self.cfg.metric)
 
-    def _init_model(self) -> None:
-        if self.cfg.type == "unet50":
-            self.net = UNet(self.cfg.num_classes)
-        elif self.cfg.type == "pspnet50":
-            self.net = PSPNet(
-                num_classes=self.cfg.num_classes,
-                layers=50,
-                bins=(1, 2, 3, 6),
-            )
-        elif self.cfg.type == "deeplabv3plus":
-            self.net = smp.DeepLabV3Plus(
-                encoder_name="resnet50",
-                encoder_weights="imagenet",
-                in_channels=3,
-                classes=int(self.cfg.num_classes)
-            )
-        else:
-            raise ValueError(f"Unknown model type: {self.cfg.type}")
-
-    def _init_criterion(self) -> None:
-        if self.weight is None:
-            self.weight = [1.0 for _ in range(int(self.cfg.num_classes))]
-
-        weight_tensor = torch.Tensor(self.weight)
-
-        if self.cfg.loss == "CrossEntropy":
-            self.criterion = CrossEntropyLoss2d(weight=weight_tensor)
-        elif self.cfg.loss == "mIoU":
-            self.criterion = mIoULoss2d(weight=weight_tensor)
-        elif self.cfg.loss == "Focal":
-            self.criterion = FocalLoss2d(weight=weight_tensor)
-        elif self.cfg.loss == "Lovasz":
-            self.criterion = LovaszLoss2d()
-        else:
-            raise ValueError(f"Unknown loss type: {self.cfg.loss}")
+    def forward(self, images: torch.Tensor) -> torch.Tensor:
+        return self.net(images)
 
     def configure_optimizers(self) -> dict[str, Any]:
         optimizer = AdamW(
@@ -94,10 +63,7 @@ class Model(LightningModule):
             },
         }
 
-    def forward(self, images: torch.Tensor) -> torch.Tensor:
-        return self.net(images)
-
-    def training_step(self, batch: list[torch.Tensor], batch_idx: int) -> Union[torch.Tensor, Tuple[torch.Tensor, ...]]:
+    def training_step(self, batch: list[torch.Tensor], batch_idx: int) -> Union[torch.Tensor, Tuple[torch.Tensor, ...]]:  # noqa: WPS210
         images, targets = batch
         targets = targets.long()
 
@@ -154,3 +120,36 @@ class Model(LightningModule):
         metric = self.test_metric.compute()
         self.test_metric.reset()
         self.log("test/metric", metric, prog_bar=True)
+
+    def _init_model(self) -> None:
+        if self.cfg.type == "unet50":
+            self.net = UNet(self.cfg.num_classes)
+        elif self.cfg.type == "pspnet50":
+            self.net = PSPNet(
+                num_classes=self.cfg.num_classes,
+                layers=RESNET50_NUMBER_OF_LAYERS,
+                bins=(1, 2, 3, 6),
+            )
+        elif self.cfg.type == "deeplabv3plus":
+            self.net = smp.DeepLabV3Plus(
+                encoder_name="resnet50", encoder_weights="imagenet", in_channels=3, classes=int(self.cfg.num_classes)
+            )
+        else:
+            raise ValueError("Unknown model type!")
+
+    def _init_criterion(self) -> None:  # noqa: WPS231
+        if self.weight is None:
+            self.weight = [1.0 for _ in range(int(self.cfg.num_classes))]
+
+        weight_tensor = torch.Tensor(self.weight)
+
+        if self.cfg.loss == "CrossEntropy":
+            self.criterion = CrossEntropyLoss2d(weight=weight_tensor)
+        elif self.cfg.loss == "mIoU":
+            self.criterion = mIoULoss2d(weight=weight_tensor)
+        elif self.cfg.loss == "Focal":
+            self.criterion = FocalLoss2d(weight=weight_tensor)
+        elif self.cfg.loss == "Lovasz":
+            self.criterion = LovaszLoss2d()
+        else:
+            raise ValueError("Unknown loss type!")

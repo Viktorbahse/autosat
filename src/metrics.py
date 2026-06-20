@@ -22,7 +22,7 @@ class Metrics:
         # Initialize confusion matrix
         self.confusion_matrix = torch.zeros((self.num_classes, self.num_classes), dtype=torch.long)
 
-    def add(self, predicted, actual):  # noqa: WPS210
+    def add(self, predicted, actual):
         """Adds an observation to the tracker."""
 
         predicted_classes = torch.argmax(predicted, dim=1)  # shape: [N, H, W]
@@ -51,7 +51,7 @@ class Metrics:
             counts = counts.to(device)
             self.confusion_matrix += counts.view(self.num_classes, self.num_classes)
 
-    def get_miou(self):  # noqa: WPS210
+    def get_miou(self):
         """Retrieves the mean Intersection over Union score.
 
         Returns:
@@ -101,7 +101,7 @@ class Metrics:
 
         return iou
 
-    def get_mcc(self):  # noqa: WPS210
+    def get_mcc(self):
         """Retrieves the Matthew's Coefficient Correlation score.
         Returns:
           The Matthew's Coefficient Correlation score for all observations seen so far.

@@ -15,7 +15,6 @@ stages:
     cmd: python scripts/prepare_satellite_data.py
     deps:
     - scripts/prepare_satellite_data.py
-    - ${prepare_satellite_data.osm}
     outs:
     - ${prepare_satellite_data.data_dir}
     params:
@@ -37,6 +36,9 @@ stages:
     deps:
     - src/train.py
     - src/loader.py
+    - src/model.py
+    - src/metrics.py
+    - src/losses.py
     outs:
     - data/logs/DvcLiveLogger/model_training/checkpoints/
     - data/logs/dvclive/artifacts/
@@ -58,7 +60,3 @@ metrics:
 plots:
 - data/logs/dvclive/plots/metrics:
     x: step
-artifacts:
-  best:
-    path: data/logs/dvclive/artifacts/epoch=3-step=1600.ckpt
-    type: model

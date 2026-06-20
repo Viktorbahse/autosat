@@ -45,7 +45,7 @@ training:
     num_workers: 8
     image_size: 256
   model:
-    type: 'deeplabv3plus' #доступно unet50 deeplabv3plus pspnet50
+    type: 'unet50' #доступно unet50 deeplabv3plus pspnet50
     loss: 'mIoU' # доступные значения: ['Lovasz', 'Focal', 'mIoU', 'CrossEntropy']
     metric: 'miou' # доступные метрики: ['miou', 'fg_iou', 'mcc']
     cuda: true
@@ -64,6 +64,6 @@ evaluate:
   checkpoint_path: ${training.logs_dir}/DvcLiveLogger/model_training/checkpoints/
   batch_size: ${training.loader.batch_size}
   classes: ${prepare_satellite_data.classes}
-  data_in: ${training.loader.keep_split}
+  data_in: ${training.loader.keep_split} #Путь к json файлу, который содержит пути к h5 файлам с фходными данными.
   image_size: ${training.loader.image_size}
   model: ${training.model}

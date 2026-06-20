@@ -15,9 +15,7 @@ MASK_KEY = "mask"
 NUMBER_OF_PIXELS_SUFFIX = "_number_of_pixels"
 
 
-def main(cfg: DictConfig):  # noqa: WPS210 WPS213 WPS231
-    # set_seed(cfg.random_seed)
-
+def main(cfg: DictConfig):
     make_dir(cfg.logs_dir, delete_if_exist=False)
 
     loader = Loader(cfg.loader)

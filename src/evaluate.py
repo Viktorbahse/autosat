@@ -40,7 +40,7 @@ def get_coords(h, w, image_size, overlap=0.5):
     return coords
 
 
-def get_probs(images, model, device, batch_size):  # noqa: WPS210
+def get_probs(images, model, device, batch_size):
     model.eval()
     model.to(device)
 
@@ -58,7 +58,8 @@ def get_probs(images, model, device, batch_size):  # noqa: WPS210
     return logits_list
 
 
-def predict(image, model, device, batch_size, image_size, shape):  # noqa: WPS210 WPS211
+def predict(image, model_data, shape):
+    model, device, batch_size, image_size = model_data
     h, w, c = shape
     prediction = np.zeros((h, w, c))
     coords = get_coords(h, w, image_size)
@@ -77,13 +78,16 @@ def predict(image, model, device, batch_size, image_size, shape):  # noqa: WPS21
     return prediction
 
 
-def predict_by_images(images, model, device, batch_size, image_size, number_of_classes):  # noqa: WPS211
+def predict_by_images(images, model_inf):
+    model, device, batch_size, image_size, number_of_classes = model_inf  # noqa: WPS236
     h, w, c = images[0].shape[0], images[0].shape[1], number_of_classes
-    prediction = sum(predict(img, model, device, batch_size, image_size, (h, w, c)) for img in images)
+    prediction = sum(
+        predict(img, model_data=(model, device, batch_size, image_size), shape=(h, w, c)) for img in images
+    )
     return prediction
 
 
-def main(cfg: DictConfig):  # noqa: WPS210 WPS231
+def main(cfg: DictConfig):  # noqa: 231
     image_size = cfg.image_size
     if cfg.model_type == "pspnet50":
         image_size += 1
@@ -125,7 +129,9 @@ def main(cfg: DictConfig):  # noqa: WPS210 WPS231
             step = 3
             indices = range(0, channels_count - 1, step)
             images = [f["data"][..., i : i + step] for i in indices]
-            pred = predict_by_images(images, model, device, cfg.batch_size, image_size, len(cfg.classes) + 1)
+            pred = predict_by_images(
+                images, model_inf=(model, device, cfg.batch_size, image_size, len(cfg.classes) + 1)
+            )
             pred = np.argmax(pred, axis=-1)
             mask = restoring_class_brightness(pred, cfg.classes)
             img = Image.fromarray(mask, "L")

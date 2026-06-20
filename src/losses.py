@@ -66,7 +66,7 @@ class mIoULoss2d(torch.nn.Module):
         super().__init__()
         self.nll_loss = torch.nn.NLLLoss(weight)
 
-    def forward(self, inputs, targets):  # noqa: WPS210
+    def forward(self, inputs, targets):
         N, C, H, W = inputs.size()
 
         # Ensure targets are int64 for scatter operation
@@ -93,7 +93,7 @@ class LovaszLoss2d(torch.nn.Module):
     See: https://arxiv.org/abs/1705.08790
     """
 
-    def forward(self, inputs, targets):  # noqa: WPS210
+    def forward(self, inputs, targets):
 
         N, C, H, W = inputs.size()
         masks = torch.zeros(N, C, H, W).to(targets.device)

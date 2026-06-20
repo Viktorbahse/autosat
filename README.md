@@ -53,7 +53,10 @@
     # stage 4
     # обучение модели
     dvc repro training
-    # для просмотра логов обучения необходимо выполнить в терминале команд tensorboard --logdir=data/logs/tensorboard
+
+    # stage 5:
+    # инференс модели
+    dvc repro evaluate
 ```
 
 #### **Pre-commit check**

@@ -13,14 +13,16 @@ from torch.utils.data import DataLoader, Dataset
 NUMBER_OF_PIXELS_SUFFIX = "_number_of_pixels"
 MASK_KEY = "mask"
 DATA_KEY = "data"
+READ_LITERAL = "r"
+MAX_UINT8 = 255
 
 
-class H5Dataset_v0(Dataset):  # noqa: WPS230
+class H5Dataset_v0(Dataset):
     def __init__(self, files: List[Path], image_size: int, transform: Optional[Callable] = None):
         self.files = [Path(p) for p in files]
         self.transform = transform
         self.image_size = image_size
-        with h5py.File(self.files[0], "r") as f:
+        with h5py.File(self.files[0], READ_LITERAL) as f:
             h, w, _ = f[DATA_KEY].shape
         self.tiles_y = h // self.image_size
         self.tiles_x = w // self.image_size
@@ -30,7 +32,7 @@ class H5Dataset_v0(Dataset):  # noqa: WPS230
     def __len__(self) -> int:
         return self.len
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:  # noqa: WPS210
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         file_idx = idx // self.images_in_file
         image_idx = idx % self.images_in_file
 
@@ -64,13 +66,13 @@ class H5Dataset_v0(Dataset):  # noqa: WPS230
             mask = augmented[MASK_KEY]
         else:
             img = torch.from_numpy(img).permute(2, 0, 1).contiguous()
-            img = img / float(255)  # noqa: WPS432
+            img = img / float(MAX_UINT8)
             mask = torch.from_numpy(mask).long()
 
         return img, mask
 
 
-class Loader(LightningDataModule):  # noqa: WPS230
+class Loader(LightningDataModule):
     def __init__(self, cfg):
         super().__init__()
         self.cfg = cfg
@@ -106,14 +108,14 @@ class Loader(LightningDataModule):  # noqa: WPS230
         with open(self.cfg.keep_split, "w", encoding="utf-8") as f:
             json.dump(data_to_save, f, indent=2, ensure_ascii=False)
 
-    def get_test_files(self):
+    def get_test_files(self):  # noqa: WPS615
         return self.test_files
 
-    def calculate_weights(self):  # noqa: WPS210
+    def calculate_weights(self):
         classes = []
         classes_pixels_values = []
         classes_number_of_pixels = {}
-        with h5py.File(self.train_files[0], "r") as f:
+        with h5py.File(self.train_files[0], READ_LITERAL) as f:
             for attr in f.attrs:
                 if attr.endswith(NUMBER_OF_PIXELS_SUFFIX):
                     class_name = attr.replace(NUMBER_OF_PIXELS_SUFFIX, "")
@@ -123,7 +125,7 @@ class Loader(LightningDataModule):  # noqa: WPS230
 
         total = 0
         for dataset_file in self.train_files:
-            with h5py.File(dataset_file, "r") as f:
+            with h5py.File(dataset_file, READ_LITERAL) as f:
                 for class_name in classes:
                     npx = f.attrs.get(f"{class_name}_number_of_pixels", 0)
                     classes_number_of_pixels[class_name] += npx
